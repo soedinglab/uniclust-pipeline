@@ -28,7 +28,7 @@ mkdir -p $TMPDIR
 OUTDIR=$(abspath $OUTDIR)
 TMPDIR=$(abspath $TMPDIR)
 
-PREFILTER_COMMON="$COMMON --diag-score 1 --min-diag-score 15 --spaced-kmer-mode 1 --max-seq-len 32768 --search-mode 2 "
+PREFILTER_COMMON="$COMMON --diag-score 1 --min-ungapped-score 15 --spaced-kmer-mode 1 --max-seq-len 32768"
 PREFILTER0_PAR="--max-seqs 20  --comp-bias-corr 0 --k-score 145 ${PREFILTER_COMMON}"
 PREFILTER1_PAR="--max-seqs 100 --comp-bias-corr 1 --k-score 135 ${PREFILTER_COMMON}"
 PREFILTER2_PAR="--max-seqs 300 --comp-bias-corr 1 --k-score 90 -k 6 ${PREFILTER_COMMON}"
@@ -45,18 +45,19 @@ CSTRANSLATE_PAR="-x 0.3 -c 4 -A $HHLIB/data/cs219.lib -D $HHLIB/data/context_dat
 SEQUENCE_DB="$OUTDIR/uniprot_db"
 
 export OMP_PROC_BIND=true
+
 # we split all sequences that are above 14k in N/14k parts
 mmseqs createdb "$INPUT" "${SEQUENCE_DB}" --max-seq-len 14000
 
 date --rfc-3339=seconds
 # filter redundancy 
 INPUT="${SEQUENCE_DB}"
-mmseqs detectredundancy $INPUT "$TMPDIR/aln_redundancy" --min-seq-id 0.9
+mmseqs clusthash $INPUT "$TMPDIR/aln_redundancy" --min-seq-id 0.9
 date --rfc-3339=seconds
-mmseqs cluster $INPUT "$TMPDIR/aln_redundancy" "$TMPDIR/clu_redundancy" ${CLUSTER1_PAR}
+mmseqs clust $INPUT "$TMPDIR/aln_redundancy" "$TMPDIR/clu_redundancy" ${CLUSTER1_PAR}
 date --rfc-3339=seconds
 awk '{ print $1 }' "$TMPDIR/clu_redundancy.index" > "$TMPDIR/order_redundancy"
-mmseqs order "$TMPDIR/order_redundancy" $INPUT "$TMPDIR/input_step0"
+mmseqs createsubdb "$TMPDIR/order_redundancy" $INPUT "$TMPDIR/input_step0"
 
 date --rfc-3339=seconds
 # go down to 90% and merge fragments (accept fragment if dbcov >= 0.95 && seqId >= 0.9)
@@ -64,12 +65,12 @@ STEP=0
 INPUT="$TMPDIR/input_step0"
 $RUNNER mmseqs prefilter "$INPUT" "$INPUT" "$TMPDIR/pref_step$STEP" ${PREFILTER0_PAR}
 date --rfc-3339=seconds
-$RUNNER mmseqs alignment "$INPUT" "$INPUT" "$TMPDIR/pref_step$STEP" "$TMPDIR/aln_step$STEP" ${ALIGNMENT0_PAR}
+$RUNNER mmseqs align "$INPUT" "$INPUT" "$TMPDIR/pref_step$STEP" "$TMPDIR/aln_step$STEP" ${ALIGNMENT0_PAR}
 date --rfc-3339=seconds
-mmseqs cluster $INPUT "$TMPDIR/aln_step$STEP" "$TMPDIR/clu_step$STEP" ${CLUSTER0_PAR}
+mmseqs clust $INPUT "$TMPDIR/aln_step$STEP" "$TMPDIR/clu_step$STEP" ${CLUSTER0_PAR}
 date --rfc-3339=seconds
 awk '{ print $1 }' "$TMPDIR/clu_step$STEP.index" > "$TMPDIR/order_step$STEP"
-mmseqs order "$TMPDIR/order_step$STEP" $INPUT "$TMPDIR/input_step1"
+mmseqs createsubdb "$TMPDIR/order_step$STEP" $INPUT "$TMPDIR/input_step1"
 
 date --rfc-3339=seconds
 # go down to 90% (this step is needed to create big clusters) 
@@ -77,18 +78,18 @@ STEP=1
 INPUT="$TMPDIR/input_step1"
 $RUNNER mmseqs prefilter "$INPUT" "$INPUT" "$TMPDIR/pref_step$STEP" ${PREFILTER1_PAR}
 date --rfc-3339=seconds
-$RUNNER mmseqs alignment "$INPUT" "$INPUT" "$TMPDIR/pref_step$STEP" "$TMPDIR/aln_step$STEP" ${ALIGNMENT1_PAR}
+$RUNNER mmseqs align "$INPUT" "$INPUT" "$TMPDIR/pref_step$STEP" "$TMPDIR/aln_step$STEP" ${ALIGNMENT1_PAR}
 date --rfc-3339=seconds
-mmseqs cluster $INPUT "$TMPDIR/aln_step$STEP" "$TMPDIR/clu_step$STEP" ${CLUSTER1_PAR}
+mmseqs clust $INPUT "$TMPDIR/aln_step$STEP" "$TMPDIR/clu_step$STEP" ${CLUSTER1_PAR}
 
 date --rfc-3339=seconds
 # create database uniclust 90% (we need to merge redundancy, step_0 and step_1)
-mmseqs mergecluster "${SEQUENCE_DB}" $OUTDIR/uniclust90_$RELEASE \
+mmseqs mergeclusters "${SEQUENCE_DB}" $OUTDIR/uniclust90_$RELEASE \
     "$TMPDIR/clu_redundancy" $TMPDIR/clu_step0 $TMPDIR/clu_step1
 date --rfc-3339=seconds
 
 awk '{ print $1 }' "$TMPDIR/clu_step$STEP.index" > "$TMPDIR/order_step$STEP"
-mmseqs order "$TMPDIR/order_step$STEP" $INPUT "$TMPDIR/input_step2"
+mmseqs createsubdb "$TMPDIR/order_step$STEP" $INPUT "$TMPDIR/input_step2"
 
 # now we cluster down to 30% sequence id to produce a 30% and 50% clustering
 STEP=2
@@ -96,23 +97,23 @@ INPUT=$TMPDIR/input_step2
 date --rfc-3339=seconds
 $RUNNER mmseqs prefilter $INPUT $INPUT "$TMPDIR/pref_step$STEP" ${PREFILTER2_PAR}
 date --rfc-3339=seconds
-$RUNNER mmseqs alignment $INPUT $INPUT "$TMPDIR/pref_step$STEP" "$TMPDIR/aln_step$STEP" ${ALIGNMENT2_PAR}
+$RUNNER mmseqs align $INPUT $INPUT "$TMPDIR/pref_step$STEP" "$TMPDIR/aln_step$STEP" ${ALIGNMENT2_PAR}
 date --rfc-3339=seconds
 
 # cluster down to 50% 
 mmseqs filterdb "$TMPDIR/aln_step$STEP" "$TMPDIR/aln_uniclust50" \
     --filter-column 3 --filter-regex '(0\.[5-9][0-9]{2}|1\.000)'
 date --rfc-3339=seconds
-mmseqs cluster $INPUT "$TMPDIR/aln_uniclust50" "$TMPDIR/clu_uniclust50" ${CLUSTER2_PAR}
+mmseqs clust $INPUT "$TMPDIR/aln_uniclust50" "$TMPDIR/clu_uniclust50" ${CLUSTER2_PAR}
 date --rfc-3339=seconds
-mmseqs mergecluster "${SEQUENCE_DB}" $OUTDIR/uniclust50_$RELEASE \
+mmseqs mergeclusters "${SEQUENCE_DB}" $OUTDIR/uniclust50_$RELEASE \
     "$TMPDIR/clu_redundancy" $TMPDIR/clu_step0 $TMPDIR/clu_step1 $TMPDIR/clu_uniclust50
 date --rfc-3339=seconds
 
 # cluster down to 30% 
-mmseqs cluster $INPUT "$TMPDIR/aln_step$STEP" "$TMPDIR/clu_uniclust30" ${CLUSTER2_PAR}
+mmseqs clust $INPUT "$TMPDIR/aln_step$STEP" "$TMPDIR/clu_uniclust30" ${CLUSTER2_PAR}
 date --rfc-3339=seconds
-mmseqs mergecluster "${SEQUENCE_DB}" $OUTDIR/uniclust30_$RELEASE \
+mmseqs mergeclusters "${SEQUENCE_DB}" $OUTDIR/uniclust30_$RELEASE \
     "$TMPDIR/clu_redundancy" $TMPDIR/clu_step0 $TMPDIR/clu_step1 $TMPDIR/clu_uniclust30
 date --rfc-3339=seconds
 
@@ -126,13 +127,13 @@ for i in 30 50 90; do
     ln -sf "${SEQUENCE_DB}_h.index" "$TMPDIR/uniclust${i}_${RELEASE}_profile_consensus_h.index"
 
      #fixme: won't work with updating
-	mmseqs mergeffindex "$OUTDIR/uniclust${i}_${RELEASE}" "$TMPDIR/uniclust${i}_${RELEASE}_seed" "$OUTDIR/uniprot_db_h" "$OUTDIR/uniprot_db" --prefixes ">"
+	mmseqs mergedbs "$OUTDIR/uniclust${i}_${RELEASE}" "$TMPDIR/uniclust${i}_${RELEASE}_seed" "$OUTDIR/uniprot_db_h" "$OUTDIR/uniprot_db" --prefixes ">"
 	rm -f "$TMPDIR/uniclust${i}_${RELEASE}_seed.index"
 
 	sed -i 's/\x0//g' "$TMPDIR/uniclust${i}_${RELEASE}_seed"
 
 	mmseqs summarizeheaders "${SEQUENCE_DB}_h" "${SEQUENCE_DB}_h" "$OUTDIR/uniclust${i}_${RELEASE}" "$TMPDIR/uniclust${i}_${RELEASE}_summary" --summary-prefix "uc${i}-${SHORTRELEASE}"
-	mmseqs mergeffindex "$OUTDIR/uniclust${i}_$RELEASE" "$TMPDIR/uniclust${i}_${RELEASE}_consensus" "$TMPDIR/uniclust${i}_${RELEASE}_summary" "$TMPDIR/uniclust${i}_${RELEASE}_profile_consensus" --prefixes ">"
+	mmseqs mergedbs "$OUTDIR/uniclust${i}_$RELEASE" "$TMPDIR/uniclust${i}_${RELEASE}_consensus" "$TMPDIR/uniclust${i}_${RELEASE}_summary" "$TMPDIR/uniclust${i}_${RELEASE}_profile_consensus" --prefixes ">"
 	rm -f "$TMPDIR/uniclust${i}_${RELEASE}_consensus.index"
 	sed -i 's/\x0//g' "$TMPDIR/uniclust${i}_${RELEASE}_consensus"
 
@@ -149,7 +150,7 @@ TARGET="$TMPDIR/uniclust30_${RELEASE}_profile_consensus"
 mkdir -p "$TMPDIR/boost1"
 unset OMP_PROC_BIND
 # Add homologous sequences to uniprot30 clusters using a profile search through the uniprot30 consensus sequences with 3 iterations
-mmseqs search "$INPUT" "$TARGET" "$TMPDIR/boost1/aln_boost" "$TMPDIR/boost1" ${SEARCH_PAR} --num-iterations 3 --include-id
+mmseqs search "$INPUT" "$TARGET" "$TMPDIR/boost1/aln_boost" "$TMPDIR/boost1" ${SEARCH_PAR} --num-iterations 3 --add-self-matches
 
 RESULT="$TMPDIR/boost1/aln_boost"
 $RUNNER mmseqs result2profile "$INPUT" "$TARGET" "$TMPDIR/boost1/aln_boost" "$TMPDIR/boost1/profile_2" $COMMON --profile
@@ -157,7 +158,7 @@ ln -s "${SEQUENCE_DB}_h" "$TMPDIR/boost1/profile_2_h"
 ln -s "${SEQUENCE_DB}_h.index" "$TMPDIR/boost1/profile_2_h.index"
 
 mkdir -p "$TMPDIR/boost2"
-mmseqs search "$TMPDIR/boost1/profile_2" "$TMPDIR/boost1/profile_2_consensus" "$TMPDIR/boost2/aln_reverse" "$TMPDIR/boost2" ${SEARCH_PAR} --include-id
+mmseqs search "$TMPDIR/boost1/profile_2" "$TMPDIR/boost1/profile_2_consensus" "$TMPDIR/boost2/aln_reverse" "$TMPDIR/boost2" ${SEARCH_PAR} --add-self-matches
 $RUNNER mmseqs swapresults "$TMPDIR/boost1/profile_2" "$TMPDIR/boost1/profile_2_consensus" "$TMPDIR/boost2/aln_reverse" "$TMPDIR/boost2/aln_reverse_swapped"
 
 INPUT=$TMPDIR/uniclust30_profile

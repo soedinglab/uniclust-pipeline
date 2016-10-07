@@ -38,8 +38,11 @@ hasCommand awk
 hasCommand tar
 hasCommand pigz
 hasCommand cstranslate_mpi
-hasCommand sed 
+hasCommand sed
 hasCommand md5deep
 hasCommand clustalo
 hasCommand kalign
 hasCommand timeout
+hasCommand python
+hasCommand python3
+
