@@ -1,6 +1,6 @@
 #!/bin/bash -ex
 
-HHDBPATH="/usr/users/mmirdit/scratch/databases"
+HHDBPATH="/cbscratch/mmirdit/databases"
 
 MMDIR="/cbscratch/mmirdit/uniclust/pipeline/mmseqs"
 PATH="$MMDIR/bin:$MMDIR/util:$PATH"

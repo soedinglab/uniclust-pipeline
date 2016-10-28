@@ -1,5 +1,4 @@
 #!/bin/bash -ex
-[ -z "$MMDIR" ] && echo "Please set the environment variable \$MMDIR to your MMSEQS installation directory." && exit 1;
 [ "$#" -lt 2  ] && echo "Please provide <sequenceDB> <outDir>"  && exit 1;
 [ ! -f "$1"   ] && echo "Sequence database $1 not found!"       && exit 1;
 [   -d "$2"   ] && echo "Output directory $2 exists already!"   && exit 1;
@@ -28,14 +27,15 @@ mkdir -p $TMPDIR
 OUTDIR=$(abspath $OUTDIR)
 TMPDIR=$(abspath $TMPDIR)
 
-PREFILTER_COMMON="$COMMON --diag-score 1 --min-ungapped-score 15 --spaced-kmer-mode 1 --max-seq-len 32768"
-PREFILTER0_PAR="--max-seqs 20  --comp-bias-corr 0 --k-score 145 ${PREFILTER_COMMON}"
-PREFILTER1_PAR="--max-seqs 100 --comp-bias-corr 1 --k-score 135 ${PREFILTER_COMMON}"
-PREFILTER2_PAR="--max-seqs 300 --comp-bias-corr 1 --k-score 90 -k 6 ${PREFILTER_COMMON}"
+PREFILTER_COMMON="$COMMON"
+PREFILTER_FRAG_PAR="--max-seqs 4000 --min-ungapped-score 100 --comp-bias-corr 0  -s 1 ${PREFILTER_COMMON}"
+PREFILTER1_PAR="--max-seqs 100  -c 0.9 --comp-bias-corr 1 -s 2 ${PREFILTER_COMMON}"
+PREFILTER2_PAR="--max-seqs 300  -c 0.8 --comp-bias-corr 1 -s 6  ${PREFILTER_COMMON}"
 ALIGNMENT_COMMON="$COMMON -e 0.001 --max-seq-len 32768 --max-rejected 2147483647"
-ALIGNMENT0_PAR="--max-seqs 20  -c 0.9 --alignment-mode 2 --min-seq-id 0.9 --comp-bias-corr 0 --frag-merge ${ALIGNMENT_COMMON}"
-ALIGNMENT1_PAR="--max-seqs 100 -c 0.9 --alignment-mode 2 --min-seq-id 0.9 --comp-bias-corr 1 ${ALIGNMENT_COMMON}"
+ALIGNMENT0_PAR="--max-seqs 100  -c 0.9 --alignment-mode 2 --min-seq-id 0.9 --comp-bias-corr 0 ${ALIGNMENT_COMMON}"
+ALIGNMENT1_PAR="--max-seqs 100 -c 0.8 --alignment-mode 2 --min-seq-id 0.9 --comp-bias-corr 1 ${ALIGNMENT_COMMON}"
 ALIGNMENT2_PAR="--max-seqs 300 -c 0.8 --alignment-mode 3 --min-seq-id 0.3 --comp-bias-corr 1 ${ALIGNMENT_COMMON}"
+CLUSTER_FRAG_PAR="--cluster-mode 2"
 CLUSTER0_PAR="--cluster-mode 2"
 CLUSTER1_PAR="--cluster-mode 0"
 CLUSTER2_PAR="--cluster-mode 0"
@@ -49,21 +49,37 @@ export OMP_PROC_BIND=true
 # we split all sequences that are above 14k in N/14k parts
 mmseqs createdb "$INPUT" "${SEQUENCE_DB}" --max-seq-len 14000
 
-date --rfc-3339=seconds
-# filter redundancy 
+STEP="_FRAG"
 INPUT="${SEQUENCE_DB}"
+$RUNNER mmseqs prefilter "$INPUT" "$INPUT" "$TMPDIR/pref_step$STEP" ${PREFILTER_FRAG_PAR}
+date --rfc-3339=seconds
+mmseqs rescorediagonal  "$INPUT" "$INPUT" "$TMPDIR/pref_step$STEP" "$TMPDIR/aln_step$STEP" --min-seq-id 0.9 --target-cov 0.95
+date --rfc-3339=seconds
+mmseqs clust $INPUT "$TMPDIR/aln_step$STEP" "$TMPDIR/clu_frag" ${CLUSTER_FRAG_PAR}
+date --rfc-3339=seconds
+awk '{ print $1 }' "$TMPDIR/clu_frag.index" > "$TMPDIR/order_frag"
+date --rfc-3339=seconds
+mmseqs createsubdb "$TMPDIR/order_frag" $INPUT "$TMPDIR/input_step_redundancy"
+date --rfc-3339=seconds
+
+# filter redundancy 
+INPUT="$TMPDIR/input_step_redundancy"
+date --rfc-3339=seconds
 mmseqs clusthash $INPUT "$TMPDIR/aln_redundancy" --min-seq-id 0.9
 date --rfc-3339=seconds
-mmseqs clust $INPUT "$TMPDIR/aln_redundancy" "$TMPDIR/clu_redundancy" ${CLUSTER1_PAR}
+mmseqs clust $INPUT "$TMPDIR/aln_redundancy" "$TMPDIR/clu_redundancy" ${CLUSTER_FRAG_PAR}
 date --rfc-3339=seconds
 awk '{ print $1 }' "$TMPDIR/clu_redundancy.index" > "$TMPDIR/order_redundancy"
 mmseqs createsubdb "$TMPDIR/order_redundancy" $INPUT "$TMPDIR/input_step0"
 
+
 date --rfc-3339=seconds
-# go down to 90% and merge fragments (accept fragment if dbcov >= 0.95 && seqId >= 0.9)
+# go down to 90%
 STEP=0
 INPUT="$TMPDIR/input_step0"
-$RUNNER mmseqs prefilter "$INPUT" "$INPUT" "$TMPDIR/pref_step$STEP" ${PREFILTER0_PAR}
+# Remove the fragments from the prefilter, in order not to recompute prefilter
+mmseqs createsubdb  "$TMPDIR/order_redundancy"  "$TMPDIR/pref_step_FRAG"  "$TMPDIR/pref_step_FRAG_filtered"
+mmseqs filterdb "$TMPDIR/pref_step_FRAG_filtered" "$TMPDIR/pref_step$STEP" --filter-file "$TMPDIR/order_redundancy"
 date --rfc-3339=seconds
 $RUNNER mmseqs align "$INPUT" "$INPUT" "$TMPDIR/pref_step$STEP" "$TMPDIR/aln_step$STEP" ${ALIGNMENT0_PAR}
 date --rfc-3339=seconds
@@ -85,7 +101,7 @@ mmseqs clust $INPUT "$TMPDIR/aln_step$STEP" "$TMPDIR/clu_step$STEP" ${CLUSTER1_P
 date --rfc-3339=seconds
 # create database uniclust 90% (we need to merge redundancy, step_0 and step_1)
 mmseqs mergeclusters "${SEQUENCE_DB}" $OUTDIR/uniclust90_$RELEASE \
-    "$TMPDIR/clu_redundancy" $TMPDIR/clu_step0 $TMPDIR/clu_step1
+    "$TMPDIR/clu_frag" "$TMPDIR/clu_redundancy" $TMPDIR/clu_step0 $TMPDIR/clu_step1
 date --rfc-3339=seconds
 
 awk '{ print $1 }' "$TMPDIR/clu_step$STEP.index" > "$TMPDIR/order_step$STEP"
@@ -107,14 +123,16 @@ date --rfc-3339=seconds
 mmseqs clust $INPUT "$TMPDIR/aln_uniclust50" "$TMPDIR/clu_uniclust50" ${CLUSTER2_PAR}
 date --rfc-3339=seconds
 mmseqs mergeclusters "${SEQUENCE_DB}" $OUTDIR/uniclust50_$RELEASE \
-    "$TMPDIR/clu_redundancy" $TMPDIR/clu_step0 $TMPDIR/clu_step1 $TMPDIR/clu_uniclust50
+    "$TMPDIR/clu_frag" "$TMPDIR/clu_redundancy" $TMPDIR/clu_step0 $TMPDIR/clu_step1 $TMPDIR/clu_uniclust50
 date --rfc-3339=seconds
 
+STEP=2
+INPUT=$TMPDIR/input_step2
 # cluster down to 30% 
 mmseqs clust $INPUT "$TMPDIR/aln_step$STEP" "$TMPDIR/clu_uniclust30" ${CLUSTER2_PAR}
 date --rfc-3339=seconds
 mmseqs mergeclusters "${SEQUENCE_DB}" $OUTDIR/uniclust30_$RELEASE \
-    "$TMPDIR/clu_redundancy" $TMPDIR/clu_step0 $TMPDIR/clu_step1 $TMPDIR/clu_uniclust30
+    "$TMPDIR/clu_frag" "$TMPDIR/clu_redundancy" $TMPDIR/clu_step0 $TMPDIR/clu_step1 $TMPDIR/clu_uniclust30
 date --rfc-3339=seconds
 
 # generate uniclust final output: the _seed, _conensus und .tsv

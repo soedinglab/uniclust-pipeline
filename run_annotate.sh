@@ -22,19 +22,24 @@ function make_annotation() {
 
     local HHPARAMS="-o /dev/null -v 0 -cpu 1 -n 1 -e 0.1"
     mpirun -pernode cp -f ${ANNODB}/pfamA_29.0/pfam_{a3m,hhm,cs219}.ff{data,index} /dev/shm
-    sleep 20
-    mpirun ffindex_apply_mpi -l "${LOGPATH}/${PREFIX}_pfam.log" -d "${DB}_pfam" -i "${DB}_pfam.index" "${DB}_a3m.ffdata" "${DB}_a3m.ffindex" -- hhblits -i stdin -blasttab stdout -d "/dev/shm/pfam" ${HHPARAMS}
+    sleep 30
+    OMP_NUM_THREADS=1 mpirun hhblits_mpi -i "${DB}_a3m" -blasttab "${DB}_pfam" -d "/dev/shm/pfam" ${HHPARAMS}
     mpirun -pernode rm -f /dev/shm/pfam_{a3m,hhm,cs219}.ff{data,index}
 
     mpirun -pernode cp -f ${ANNODB}/pdb70_18May16/pdb70_{a3m,hhm,cs219}.ff{data,index} /dev/shm
-    sleep 20
-    mpirun ffindex_apply_mpi -l "${LOGPATH}/${PREFIX}_pdb.log"  -d "${DB}_pdb"  -i "${DB}_pdb.index"  "${DB}_a3m.ffdata" "${DB}_a3m.ffindex" -- hhblits -i stdin -blasttab stdout -d "/dev/shm/pdb70" ${HHPARAMS}
+    sleep 30
+    OMP_NUM_THREADS=1 mpirun hhblits_mpi -i "${DB}_a3m" -blasttab "${DB}_pdb" -d "/dev/shm/pdb70" ${HHPARAMS}
     mpirun -pernode rm -f /dev/shm/pdb70_{a3m,hhm,cs219}.ff{data,index}
 
     mpirun -pernode cp -f ${ANNODB}/scop70_1.75/scop70_1.75_{a3m,hhm,cs219}.ff{data,index} /dev/shm
-    sleep 20
-    mpirun ffindex_apply_mpi -l "${LOGPATH}/${PREFIX}_scop.log" -d "${DB}_scop" -i "${DB}_scop.index" "${DB}_a3m.ffdata" "${DB}_a3m.ffindex" -- hhblits -i stdin -blasttab stdout -d "/dev/shm/scop70_1.75" ${HHPARAMS}
+    sleep 30
+    OMP_NUM_THREADS=1 mpirun hhblits_mpi -i "${DB}_a3m" -blasttab "${DB}_scop" -d "/dev/shm/scop70_1.75" ${HHPARAMS}
     mpirun -pernode rm -f /dev/shm/scop70_1.75_{a3m,hhm,cs219}.ff{data,index}
+
+    for i in pfam pdb scop; do
+        ln -s "${DB}_${i}.ffdata" "${DB}_${i}"
+        ln -s "${DB}_${i}.ffindex" "${DB}_${i}.index"
+    done
 }
 
 function make_lengths() {
