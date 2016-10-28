@@ -45,4 +45,4 @@ hasCommand kalign
 hasCommand timeout
 hasCommand python
 hasCommand python3
-
+hasCommand hhblits_mpi
