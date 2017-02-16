@@ -46,11 +46,11 @@ function make_hhdatabase () {
 
     make_cstranslate.sh ${CLUSTDB}_a3m ${CLUSTDB}_cs219
     make_finalize.sh "${BASE}" "$RELEASE" "${PREFIXCLUST}" "${TMPPATH}"
+    mv -f "${TMPPATH}/uniclust30_2016_09_hhsuite.tar.gz" "${BASE}"
 }
 
 source ./paths.sh
 mkdir -p "${TARGET}/tmp/clust"
 make_hhdatabase "${TARGET}" "${RELEASE}" "uniclust30" "${TARGET}/tmp/clust"
-#make_a3m "${TARGET}" "${RELEASE}" "uniclust30" "${TARGET}/tmp/clust"
 #make_a3m "${TARGET}" "${RELEASE}" "uniclust50" "${TARGET}/tmp/clust"
 #make_a3m "${TARGET}" "${RELEASE}" "uniclust90" "${TARGET}/tmp/clust"

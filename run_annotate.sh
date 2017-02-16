@@ -78,7 +78,7 @@ function make_tsv() {
     local OUTPATH="${TMPPATH}/${PREFIXMSA}"
     tar -cv --use-compress-program=pigz \
         --show-transformed-names --transform "s|${OUTPATH:1}|uniclust_${RELEASE}/uniclust_${RELEASE}_annotation|g" \
-        -f "$TMPPATH/uniclust_${RELEASE}_annotation.tar.gz" \
+        -f "${BASE}/uniclust_${RELEASE}_annotation.tar.gz" \
         ${OUTPUT}
 }
 
