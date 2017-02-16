@@ -52,6 +52,10 @@ hasCommand awk
 hasCommand tar
 hasCommand pigz
 hasCommand cstranslate_mpi
+if [[ ! -e ${HHLIB}/data/cs219.lib ]] || [[ ! -e ${HHLIB}/data/context_data.lib ]]; then
+    echo "Missing required cstranslate data, check HHLIB env var!"
+    exit 1;
+fi
 hasCommand sed
 hasCommand md5deep
 hasCommand clustalo
