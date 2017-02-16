@@ -6,7 +6,6 @@
 #BSUB -n 128
 #BSUB -a openmpi
 #BSUB -m hh
-#BSUB -R haswell
 #BSUB -R cbscratch
 #BSUB -R "span[ptile=16]"
 
@@ -17,7 +16,7 @@ function make_a3m () {
     local CLUSTDB="${BASE}/${PREFIXCLUST}_${RELEASE}"
 
     local TMPDIR="$4"
-    mkdir -p ${TMPDIR}
+    mkdir -p "${TMPDIR}"
     local TMPDB="${TMPDIR}/${PREFIXCLUST}_${RELEASE}"
 
     mmseqs createseqfiledb "${BASE}/uniprot_db" "${CLUSTDB}" "${TMPDB}_fasta" --min-sequences 2
@@ -29,7 +28,7 @@ function make_a3m () {
 
     mmseqs createseqfiledb "${BASE}/uniprot_db" "${CLUSTDB}" "${TMPDB}_singleton" --max-sequences 1 --hh-format
     cp -f "${TMPDB}_a3m.ffdata" "${CLUSTDB}_a3m.ffdata"
-    cp -f "${TMPDB}_a3m.ffindex" "${CLUSTDB}_a3m.ffindex"
+    cp -f "${TMPDB}_a3m.ffindex" "${CLUSTDB}_a3m.ffindex" 
     ffindex_build -as "${CLUSTDB}_a3m.ffdata" "${CLUSTDB}_a3m.ffindex" -d "${TMPDB}_singleton" -i "${TMPDB}_singleton.index"
 }
 
@@ -37,23 +36,21 @@ function make_hhdatabase () {
     local BASE="$1"
     local RELEASE="$2"
     local PREFIXCLUST="$3"
-    local PREFIXBOOST="$4"
     local CLUSTDB="${BASE}/${PREFIXCLUST}_${RELEASE}"
-    local BOOSTDB="${BASE}/${PREFIXBOOST}_${RELEASE}"
 
-    local TMPDIR="$5"
+    local TMPDIR="$4"
     mkdir -p ${TMPDIR}
 
     make_a3m "${BASE}" "${RELEASE}" "${PREFIXCLUST}" "${TMPDIR}"
     make_hhmake.sh "${CLUSTDB}_a3m" "${CLUSTDB}_hhm" "${TMPDIR}"
 
-    #make_cstranslate.sh ${CLUSTDB}_a3m ${CLUSTDB}_cs219
-    make_finalize.sh "${BASE}" "$2" "${PREFIXCLUST}" "tmp/uniboost" "${TMPDIR}"
+    make_cstranslate.sh ${CLUSTDB}_a3m ${CLUSTDB}_cs219
+    make_finalize.sh "${BASE}" "$RELEASE" "${PREFIXCLUST}" "${TMPDIR}"
 }
 
 source ./paths.sh
 mkdir -p "${TARGET}/tmp/clust"
-make_hhdatabase "${TARGET}" "${RELEASE}" "uniclust30" "uniboost10" "${TARGET}/tmp/clust"
+make_hhdatabase "${TARGET}" "${RELEASE}" "uniclust30" "${TARGET}/tmp/clust"
 #make_a3m "${TARGET}" "${RELEASE}" "uniclust30" "${TARGET}/tmp/clust"
 #make_a3m "${TARGET}" "${RELEASE}" "uniclust50" "${TARGET}/tmp/clust"
 #make_a3m "${TARGET}" "${RELEASE}" "uniclust90" "${TARGET}/tmp/clust"

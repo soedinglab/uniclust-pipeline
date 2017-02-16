@@ -2,11 +2,10 @@
 #BSUB -q mpi-long+
 #BSUB -o out.%J
 #BSUB -e err.%J
-#BSUB -W 12:00
-#BSUB -n 64
+#BSUB -W 120:00
+#BSUB -n 240
 #BSUB -a openmpi
 #BSUB -m hh
-#BSUB -R haswell
 #BSUB -R cbscratch
 #BSUB -R "span[ptile=16]"
 
@@ -18,15 +17,14 @@ function make_annotation() {
     mkdir -p "${LOGPATH}"
     local ANNODB="$3"
 
-    mpirun -pernode -- find /dev/shm -type f -exec rm -f {} \;
-
-    local HHPARAMS="-o /dev/null -v 0 -cpu 1 -n 1 -e 0.1"
+    local HHPARAMS="-v 0 -cpu 1 -n 1 -e 0.1"
     mpirun -pernode cp -f ${ANNODB}/pfamA_29.0/pfam_{a3m,hhm,cs219}.ff{data,index} /dev/shm
     sleep 30
     OMP_NUM_THREADS=1 mpirun hhblits_mpi -i "${DB}_a3m" -blasttab "${DB}_pfam" -d "/dev/shm/pfam" ${HHPARAMS}
     mpirun -pernode rm -f /dev/shm/pfam_{a3m,hhm,cs219}.ff{data,index}
 
-    mpirun -pernode cp -f ${ANNODB}/pdb70_18May16/pdb70_{a3m,hhm,cs219}.ff{data,index} /dev/shm
+
+    mpirun -pernode cp -f ${ANNODB}/pdb70_14Sep16/pdb70_{a3m,hhm,cs219}.ff{data,index} /dev/shm
     sleep 30
     OMP_NUM_THREADS=1 mpirun hhblits_mpi -i "${DB}_a3m" -blasttab "${DB}_pdb" -d "/dev/shm/pdb70" ${HHPARAMS}
     mpirun -pernode rm -f /dev/shm/pdb70_{a3m,hhm,cs219}.ff{data,index}
@@ -49,7 +47,7 @@ function make_lengths() {
 
     awk '{ print $1"\t"$3-2 }' "$BASE/uniprot_db.index" > "${RESULT}"
     awk '{ sub("\\.a3m", "", $1); print $1"\t"$3-2 }' "${DB}/pfamA_29.0/pfam_cs219.ffindex" >> "${RESULT}"
-    awk '{ print $1"\t"$3-2 }' "${DB}/pdb70_18May16/pdb70_cs219.ffindex" >> "${RESULT}"
+    awk '{ print $1"\t"$3-2 }' "${DB}/pdb70_14Sep16/pdb70_cs219.ffindex" >> "${RESULT}"
     awk '{ print $1"\t"$3-2 }' "${DB}/scop70_1.75/scop70_1.75_cs219.ffindex" >> "${RESULT}"
 }
 
@@ -83,7 +81,7 @@ function make_tsv() {
         ${OUTPUT}
 }
 
-source ./paths.sh
+source ./paths-martin.sh
 a3m_database_extract -i "${TARGET}/uniboost10_${RELEASE}_ca3m" -o "${TARGET}/uniboost10_${RELEASE}_a3m" -d "${TARGET}/uniboost10_${RELEASE}_sequence" -q "${TARGET}/uniboost10_${RELEASE}_header" 
 make_annotation "$TARGET" "uniboost10_${RELEASE}" "$HHDBPATH"
 

@@ -16,8 +16,8 @@ UCDIR="/cbscratch/mmirdit/uniclust/pipeline"
 PATH="$UCDIR:$UCDIR/annotation:$PATH"
 
 export FASTA="./input.fasta"
-export RELEASE="2016_06"
-export SHORTRELEASE="1606"
+export RELEASE="2016_09"
+export SHORTRELEASE="1609"
 export BASE="output"
 export TARGET="./output/${RELEASE}"
 

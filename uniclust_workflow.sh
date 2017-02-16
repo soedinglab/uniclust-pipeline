@@ -45,7 +45,6 @@ CSTRANSLATE_PAR="-x 0.3 -c 4 -A $HHLIB/data/cs219.lib -D $HHLIB/data/context_dat
 SEQUENCE_DB="$OUTDIR/uniprot_db"
 
 export OMP_PROC_BIND=true
-
 # we split all sequences that are above 14k in N/14k parts
 mmseqs createdb "$INPUT" "${SEQUENCE_DB}" --max-seq-len 14000
 
@@ -106,7 +105,6 @@ date --rfc-3339=seconds
 
 awk '{ print $1 }' "$TMPDIR/clu_step$STEP.index" > "$TMPDIR/order_step$STEP"
 mmseqs createsubdb "$TMPDIR/order_step$STEP" $INPUT "$TMPDIR/input_step2"
-
 # now we cluster down to 30% sequence id to produce a 30% and 50% clustering
 STEP=2
 INPUT=$TMPDIR/input_step2
@@ -168,36 +166,28 @@ TARGET="$TMPDIR/uniclust30_${RELEASE}_profile_consensus"
 mkdir -p "$TMPDIR/boost1"
 unset OMP_PROC_BIND
 # Add homologous sequences to uniprot30 clusters using a profile search through the uniprot30 consensus sequences with 3 iterations
-mmseqs search "$INPUT" "$TARGET" "$TMPDIR/boost1/aln_boost" "$TMPDIR/boost1" ${SEARCH_PAR} --num-iterations 3 --add-self-matches
+mmseqs search "$INPUT" "$TARGET" "$TMPDIR/boost1/aln_boost" "$TMPDIR/boost1" ${SEARCH_PAR} --num-iterations 4 --add-self-matches
 
+TARGET="$TMPDIR/uniclust30_${RELEASE}_profile_consensus"
+INPUT="$TARGET"
 RESULT="$TMPDIR/boost1/aln_boost"
-$RUNNER mmseqs result2profile "$INPUT" "$TARGET" "$TMPDIR/boost1/aln_boost" "$TMPDIR/boost1/profile_2" $COMMON --profile
-ln -s "${SEQUENCE_DB}_h" "$TMPDIR/boost1/profile_2_h"
-ln -s "${SEQUENCE_DB}_h.index" "$TMPDIR/boost1/profile_2_h.index"
-
-mkdir -p "$TMPDIR/boost2"
-mmseqs search "$TMPDIR/boost1/profile_2" "$TMPDIR/boost1/profile_2_consensus" "$TMPDIR/boost2/aln_reverse" "$TMPDIR/boost2" ${SEARCH_PAR} --add-self-matches
-$RUNNER mmseqs swapresults "$TMPDIR/boost1/profile_2" "$TMPDIR/boost1/profile_2_consensus" "$TMPDIR/boost2/aln_reverse" "$TMPDIR/boost2/aln_reverse_swapped"
-
-INPUT=$TMPDIR/uniclust30_profile
-ln -sf "${SEQUENCE_DB}_h" "$TMPDIR/boost1/profile_2_consensus_h"
-ln -sf "${SEQUENCE_DB}_h.index" "$TMPDIR/boost1/profile_2_consensus_h.index"
-
-INPUT="$TMPDIR/boost1/profile_2_consensus"
-RESULT="$TMPDIR/boost2/aln_reverse_swapped"
-TARGET="$INPUT"
 
 export OMP_PROC_BIND=true
 ## For each cluster generate an MSA with -qsc filter (score per column with query) of 0.0, 0.5 1.1.
 $RUNNER mmseqs result2msa "$INPUT" "$TARGET" "$RESULT" "$OUTDIR/uniboost10_${RELEASE}" --qsc 0.0 --compress
 mv "$OUTDIR/uniboost10_${RELEASE}_ca3m" "$OUTDIR/uniboost10_${RELEASE}_ca3m.ffdata"
 mv "$OUTDIR/uniboost10_${RELEASE}_ca3m.index" "$OUTDIR/uniboost10_${RELEASE}_ca3m.ffindex"
+
+awk '{ print $1 }' "${INPUT}.index" > "${INPUT}.list"
+mmseqs createsubdb "${INPUT}.list" "${INPUT}" "${INPUT}_small_h"
+
 for i in 10 20 30; do
     ln -sf "${INPUT}" "$OUTDIR/uniboost${i}_${RELEASE}_sequence.ffdata"
     ln -sf "${INPUT}.index" "$OUTDIR/uniboost${i}_${RELEASE}_sequence.ffindex"
-    ln -sf "${INPUT}_h" "$OUTDIR/uniboost${i}_${RELEASE}_header.ffdata"
-    ln -sf "${INPUT}_h.index" "$OUTDIR/uniboost${i}_${RELEASE}_header.ffindex"
+    ln -sf "${INPUT}_small_h" "$OUTDIR/uniboost${i}_${RELEASE}_header.ffdata"
+    ln -sf "${INPUT}_small_h.index" "$OUTDIR/uniboost${i}_${RELEASE}_header.ffindex"
 done
+
 mpirun cstranslate_mpi ${CSTRANSLATE_PAR} -i "$OUTDIR/uniboost10_${RELEASE}" -o "${TMPDIR}/uniboost_${RELEASE}_cs219" --both
 $RUNNER mmseqs result2msa "$INPUT" "$TARGET" "$RESULT" "$OUTDIR/uniboost20_${RELEASE}" --qsc 0.5 --compress
 $RUNNER mmseqs result2msa "$INPUT" "$TARGET" "$RESULT" "$OUTDIR/uniboost30_${RELEASE}" --qsc 1.1 --compress
@@ -210,15 +200,18 @@ done
 for i in 10 20 30; do
     ln -sf "${TMPDIR}/uniboost_${RELEASE}_cs219_binary.ffdata"  "${OUTDIR}/uniboost${i}_${RELEASE}_cs219.ffdata"
     ln -sf "${TMPDIR}/uniboost_${RELEASE}_cs219_binary.ffindex" "${OUTDIR}/uniboost${i}_${RELEASE}_cs219.ffindex"
-	tar -cv --use-compress-program=pigz --dereference \
+
+    md5deep "$OUTDIR/uniboost${i}_${RELEASE}_ca3m.ffdata" "$OUTDIR/uniboost${i}_${RELEASE}_ca3m.ffindex" \
+            "$OUTDIR/uniboost${i}_${RELEASE}_header.ffdata" "$OUTDIR/uniboost${i}_${RELEASE}_header.ffindex" \
+            "$OUTDIR/uniboost${i}_${RELEASE}_sequence.ffdata" "$OUTDIR/uniboost${i}_${RELEASE}_sequence.ffindex" \
+            "$OUTDIR/uniboost${i}_${RELEASE}_cs219.ffdata" "$OUTDIR/uniboost${i}_${RELEASE}_cs219.ffindex" > "$OUTDIR/uniboost${i}_${RELEASE}_md5sum"
+
+    tar -cv --use-compress-program=pigz --dereference \
         --show-transformed-names --transform "s|${OUTDIR:1}/|uniboost${i}_${RELEASE}/|g" \
         -f "$OUTDIR/uniboost${i}_${RELEASE}.tar.gz" \
-        "$OUTDIR/uniboost${i}_${RELEASE}_ca3m.ffdata" \
-        "$OUTDIR/uniboost${i}_${RELEASE}_ca3m.ffdata" \
-        "$OUTDIR/uniboost${i}_${RELEASE}_header.ffindex" \
-        "$OUTDIR/uniboost${i}_${RELEASE}_header.ffindex" \
-        "$OUTDIR/uniboost${i}_${RELEASE}_sequence.ffindex" \
-        "$OUTDIR/uniboost${i}_${RELEASE}_sequence.ffindex" \
-        "$OUTDIR/uniboost${i}_${RELEASE}_cs219.ffindex" \
-        "$OUTDIR/uniboost${i}_${RELEASE}_cs219.ffindex"
+        "$OUTDIR/uniboost${i}_${RELEASE}_ca3m.ffdata" "$OUTDIR/uniboost${i}_${RELEASE}_ca3m.ffindex" \
+        "$OUTDIR/uniboost${i}_${RELEASE}_header.ffdata" "$OUTDIR/uniboost${i}_${RELEASE}_header.ffindex" \
+        "$OUTDIR/uniboost${i}_${RELEASE}_sequence.ffdata" "$OUTDIR/uniboost${i}_${RELEASE}_sequence.ffindex" \
+        "$OUTDIR/uniboost${i}_${RELEASE}_cs219.ffdata" "$OUTDIR/uniboost${i}_${RELEASE}_cs219.ffindex" \
+        "$OUTDIR/uniboost${i}_${RELEASE}_md5sum"
 done
