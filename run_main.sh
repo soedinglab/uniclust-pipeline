@@ -12,4 +12,4 @@ export RUNNER="mpirun --pernode --bind-to none"
 export COMMON="--threads 16"
 export OMP_NUM_THREADS=16
 source ./paths.sh
-./uniclust_workflow_martin.sh "${FASTA}" "${BASE}" "${RELEASE}" "${SHORTRELEASE}"
+./uniclust_workflow.sh "${FASTA}" "${BASE}" "${RELEASE}" "${SHORTRELEASE}"

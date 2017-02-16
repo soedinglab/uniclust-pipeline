@@ -15,16 +15,16 @@ function make_a3m () {
     local PREFIXCLUST="$3"
     local CLUSTDB="${BASE}/${PREFIXCLUST}_${RELEASE}"
 
-    local TMPDIR="$4"
-    mkdir -p "${TMPDIR}"
-    local TMPDB="${TMPDIR}/${PREFIXCLUST}_${RELEASE}"
+    local TMPPATH="$4"
+    mkdir -p "${TMPPATH}"
+    local TMPDB="${TMPPATH}/${PREFIXCLUST}_${RELEASE}"
 
     mmseqs createseqfiledb "${BASE}/uniprot_db" "${CLUSTDB}" "${TMPDB}_fasta" --min-sequences 2
     ffindex_build -as "${TMPDB}_fasta" "${TMPDB}_fasta.index"
     mv -f "${TMPDB}_fasta" "${TMPDB}_fasta.ffdata"
     mv -f "${TMPDB}_fasta.index" "${TMPDB}_fasta.ffindex"
 
-    make_a3m.sh "${TMPDB}_fasta" "${TMPDB}_a3m" "${TMPDIR}"
+    make_a3m.sh "${TMPDB}_fasta" "${TMPDB}_a3m" "${TMPPATH}"
 
     mmseqs createseqfiledb "${BASE}/uniprot_db" "${CLUSTDB}" "${TMPDB}_singleton" --max-sequences 1 --hh-format
     cp -f "${TMPDB}_a3m.ffdata" "${CLUSTDB}_a3m.ffdata"
@@ -38,14 +38,14 @@ function make_hhdatabase () {
     local PREFIXCLUST="$3"
     local CLUSTDB="${BASE}/${PREFIXCLUST}_${RELEASE}"
 
-    local TMPDIR="$4"
-    mkdir -p ${TMPDIR}
+    local TMPPATH="$4"
+    mkdir -p ${TMPPATH}
 
-    make_a3m "${BASE}" "${RELEASE}" "${PREFIXCLUST}" "${TMPDIR}"
-    make_hhmake.sh "${CLUSTDB}_a3m" "${CLUSTDB}_hhm" "${TMPDIR}"
+    make_a3m "${BASE}" "${RELEASE}" "${PREFIXCLUST}" "${TMPPATH}"
+    make_hhmake.sh "${CLUSTDB}_a3m" "${CLUSTDB}_hhm" "${TMPPATH}"
 
     make_cstranslate.sh ${CLUSTDB}_a3m ${CLUSTDB}_cs219
-    make_finalize.sh "${BASE}" "$RELEASE" "${PREFIXCLUST}" "${TMPDIR}"
+    make_finalize.sh "${BASE}" "$RELEASE" "${PREFIXCLUST}" "${TMPPATH}"
 }
 
 source ./paths.sh

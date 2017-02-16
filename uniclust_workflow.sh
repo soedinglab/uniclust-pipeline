@@ -21,11 +21,11 @@ SHORTRELEASE="${4:-$(date "+%y%m")}"
 INPUT=$1
 OUTDIR=$2/$RELEASE
 
-TMPDIR=$OUTDIR/tmp
-mkdir -p $TMPDIR
+TMPPATH=$OUTDIR/tmp
+mkdir -p $TMPPATH
 
 OUTDIR=$(abspath $OUTDIR)
-TMPDIR=$(abspath $TMPDIR)
+TMPPATH=$(abspath $TMPPATH)
 
 PREFILTER_COMMON="$COMMON"
 PREFILTER_FRAG_PAR="--max-seqs 4000 --min-ungapped-score 100 --comp-bias-corr 0  -s 1 ${PREFILTER_COMMON}"
@@ -50,127 +50,127 @@ mmseqs createdb "$INPUT" "${SEQUENCE_DB}" --max-seq-len 14000
 
 STEP="_FRAG"
 INPUT="${SEQUENCE_DB}"
-$RUNNER mmseqs prefilter "$INPUT" "$INPUT" "$TMPDIR/pref_step$STEP" ${PREFILTER_FRAG_PAR}
+$RUNNER mmseqs prefilter "$INPUT" "$INPUT" "$TMPPATH/pref_step$STEP" ${PREFILTER_FRAG_PAR}
 date --rfc-3339=seconds
-mmseqs rescorediagonal  "$INPUT" "$INPUT" "$TMPDIR/pref_step$STEP" "$TMPDIR/aln_step$STEP" --min-seq-id 0.9 --target-cov 0.95
+mmseqs rescorediagonal  "$INPUT" "$INPUT" "$TMPPATH/pref_step$STEP" "$TMPPATH/aln_step$STEP" --min-seq-id 0.9 --target-cov 0.95
 date --rfc-3339=seconds
-mmseqs clust $INPUT "$TMPDIR/aln_step$STEP" "$TMPDIR/clu_frag" ${CLUSTER_FRAG_PAR}
+mmseqs clust $INPUT "$TMPPATH/aln_step$STEP" "$TMPPATH/clu_frag" ${CLUSTER_FRAG_PAR}
 date --rfc-3339=seconds
-awk '{ print $1 }' "$TMPDIR/clu_frag.index" > "$TMPDIR/order_frag"
+awk '{ print $1 }' "$TMPPATH/clu_frag.index" > "$TMPPATH/order_frag"
 date --rfc-3339=seconds
-mmseqs createsubdb "$TMPDIR/order_frag" $INPUT "$TMPDIR/input_step_redundancy"
+mmseqs createsubdb "$TMPPATH/order_frag" $INPUT "$TMPPATH/input_step_redundancy"
 date --rfc-3339=seconds
 
 # filter redundancy 
-INPUT="$TMPDIR/input_step_redundancy"
+INPUT="$TMPPATH/input_step_redundancy"
 date --rfc-3339=seconds
-mmseqs clusthash $INPUT "$TMPDIR/aln_redundancy" --min-seq-id 0.9
+mmseqs clusthash $INPUT "$TMPPATH/aln_redundancy" --min-seq-id 0.9
 date --rfc-3339=seconds
-mmseqs clust $INPUT "$TMPDIR/aln_redundancy" "$TMPDIR/clu_redundancy" ${CLUSTER_FRAG_PAR}
+mmseqs clust $INPUT "$TMPPATH/aln_redundancy" "$TMPPATH/clu_redundancy" ${CLUSTER_FRAG_PAR}
 date --rfc-3339=seconds
-awk '{ print $1 }' "$TMPDIR/clu_redundancy.index" > "$TMPDIR/order_redundancy"
-mmseqs createsubdb "$TMPDIR/order_redundancy" $INPUT "$TMPDIR/input_step0"
+awk '{ print $1 }' "$TMPPATH/clu_redundancy.index" > "$TMPPATH/order_redundancy"
+mmseqs createsubdb "$TMPPATH/order_redundancy" $INPUT "$TMPPATH/input_step0"
 
 
 date --rfc-3339=seconds
 # go down to 90%
 STEP=0
-INPUT="$TMPDIR/input_step0"
+INPUT="$TMPPATH/input_step0"
 # Remove the fragments from the prefilter, in order not to recompute prefilter
-mmseqs createsubdb  "$TMPDIR/order_redundancy"  "$TMPDIR/pref_step_FRAG"  "$TMPDIR/pref_step_FRAG_filtered"
-mmseqs filterdb "$TMPDIR/pref_step_FRAG_filtered" "$TMPDIR/pref_step$STEP" --filter-file "$TMPDIR/order_redundancy"
+mmseqs createsubdb  "$TMPPATH/order_redundancy"  "$TMPPATH/pref_step_FRAG"  "$TMPPATH/pref_step_FRAG_filtered"
+mmseqs filterdb "$TMPPATH/pref_step_FRAG_filtered" "$TMPPATH/pref_step$STEP" --filter-file "$TMPPATH/order_redundancy"
 date --rfc-3339=seconds
-$RUNNER mmseqs align "$INPUT" "$INPUT" "$TMPDIR/pref_step$STEP" "$TMPDIR/aln_step$STEP" ${ALIGNMENT0_PAR}
+$RUNNER mmseqs align "$INPUT" "$INPUT" "$TMPPATH/pref_step$STEP" "$TMPPATH/aln_step$STEP" ${ALIGNMENT0_PAR}
 date --rfc-3339=seconds
-mmseqs clust $INPUT "$TMPDIR/aln_step$STEP" "$TMPDIR/clu_step$STEP" ${CLUSTER0_PAR}
+mmseqs clust $INPUT "$TMPPATH/aln_step$STEP" "$TMPPATH/clu_step$STEP" ${CLUSTER0_PAR}
 date --rfc-3339=seconds
-awk '{ print $1 }' "$TMPDIR/clu_step$STEP.index" > "$TMPDIR/order_step$STEP"
-mmseqs createsubdb "$TMPDIR/order_step$STEP" $INPUT "$TMPDIR/input_step1"
+awk '{ print $1 }' "$TMPPATH/clu_step$STEP.index" > "$TMPPATH/order_step$STEP"
+mmseqs createsubdb "$TMPPATH/order_step$STEP" $INPUT "$TMPPATH/input_step1"
 
 date --rfc-3339=seconds
 # go down to 90% (this step is needed to create big clusters) 
 STEP=1
-INPUT="$TMPDIR/input_step1"
-$RUNNER mmseqs prefilter "$INPUT" "$INPUT" "$TMPDIR/pref_step$STEP" ${PREFILTER1_PAR}
+INPUT="$TMPPATH/input_step1"
+$RUNNER mmseqs prefilter "$INPUT" "$INPUT" "$TMPPATH/pref_step$STEP" ${PREFILTER1_PAR}
 date --rfc-3339=seconds
-$RUNNER mmseqs align "$INPUT" "$INPUT" "$TMPDIR/pref_step$STEP" "$TMPDIR/aln_step$STEP" ${ALIGNMENT1_PAR}
+$RUNNER mmseqs align "$INPUT" "$INPUT" "$TMPPATH/pref_step$STEP" "$TMPPATH/aln_step$STEP" ${ALIGNMENT1_PAR}
 date --rfc-3339=seconds
-mmseqs clust $INPUT "$TMPDIR/aln_step$STEP" "$TMPDIR/clu_step$STEP" ${CLUSTER1_PAR}
+mmseqs clust $INPUT "$TMPPATH/aln_step$STEP" "$TMPPATH/clu_step$STEP" ${CLUSTER1_PAR}
 
 date --rfc-3339=seconds
 # create database uniclust 90% (we need to merge redundancy, step_0 and step_1)
 mmseqs mergeclusters "${SEQUENCE_DB}" $OUTDIR/uniclust90_$RELEASE \
-    "$TMPDIR/clu_frag" "$TMPDIR/clu_redundancy" $TMPDIR/clu_step0 $TMPDIR/clu_step1
+    "$TMPPATH/clu_frag" "$TMPPATH/clu_redundancy" $TMPPATH/clu_step0 $TMPPATH/clu_step1
 date --rfc-3339=seconds
 
-awk '{ print $1 }' "$TMPDIR/clu_step$STEP.index" > "$TMPDIR/order_step$STEP"
-mmseqs createsubdb "$TMPDIR/order_step$STEP" $INPUT "$TMPDIR/input_step2"
+awk '{ print $1 }' "$TMPPATH/clu_step$STEP.index" > "$TMPPATH/order_step$STEP"
+mmseqs createsubdb "$TMPPATH/order_step$STEP" $INPUT "$TMPPATH/input_step2"
 # now we cluster down to 30% sequence id to produce a 30% and 50% clustering
 STEP=2
-INPUT=$TMPDIR/input_step2
+INPUT=$TMPPATH/input_step2
 date --rfc-3339=seconds
-$RUNNER mmseqs prefilter $INPUT $INPUT "$TMPDIR/pref_step$STEP" ${PREFILTER2_PAR}
+$RUNNER mmseqs prefilter $INPUT $INPUT "$TMPPATH/pref_step$STEP" ${PREFILTER2_PAR}
 date --rfc-3339=seconds
-$RUNNER mmseqs align $INPUT $INPUT "$TMPDIR/pref_step$STEP" "$TMPDIR/aln_step$STEP" ${ALIGNMENT2_PAR}
+$RUNNER mmseqs align $INPUT $INPUT "$TMPPATH/pref_step$STEP" "$TMPPATH/aln_step$STEP" ${ALIGNMENT2_PAR}
 date --rfc-3339=seconds
 
 # cluster down to 50% 
-mmseqs filterdb "$TMPDIR/aln_step$STEP" "$TMPDIR/aln_uniclust50" \
+mmseqs filterdb "$TMPPATH/aln_step$STEP" "$TMPPATH/aln_uniclust50" \
     --filter-column 3 --filter-regex '(0\.[5-9][0-9]{2}|1\.000)'
 date --rfc-3339=seconds
-mmseqs clust $INPUT "$TMPDIR/aln_uniclust50" "$TMPDIR/clu_uniclust50" ${CLUSTER2_PAR}
+mmseqs clust $INPUT "$TMPPATH/aln_uniclust50" "$TMPPATH/clu_uniclust50" ${CLUSTER2_PAR}
 date --rfc-3339=seconds
 mmseqs mergeclusters "${SEQUENCE_DB}" $OUTDIR/uniclust50_$RELEASE \
-    "$TMPDIR/clu_frag" "$TMPDIR/clu_redundancy" $TMPDIR/clu_step0 $TMPDIR/clu_step1 $TMPDIR/clu_uniclust50
+    "$TMPPATH/clu_frag" "$TMPPATH/clu_redundancy" $TMPPATH/clu_step0 $TMPPATH/clu_step1 $TMPPATH/clu_uniclust50
 date --rfc-3339=seconds
 
 STEP=2
-INPUT=$TMPDIR/input_step2
+INPUT=$TMPPATH/input_step2
 # cluster down to 30% 
-mmseqs clust $INPUT "$TMPDIR/aln_step$STEP" "$TMPDIR/clu_uniclust30" ${CLUSTER2_PAR}
+mmseqs clust $INPUT "$TMPPATH/aln_step$STEP" "$TMPPATH/clu_uniclust30" ${CLUSTER2_PAR}
 date --rfc-3339=seconds
 mmseqs mergeclusters "${SEQUENCE_DB}" $OUTDIR/uniclust30_$RELEASE \
-    "$TMPDIR/clu_frag" "$TMPDIR/clu_redundancy" $TMPDIR/clu_step0 $TMPDIR/clu_step1 $TMPDIR/clu_uniclust30
+    "$TMPPATH/clu_frag" "$TMPPATH/clu_redundancy" $TMPPATH/clu_step0 $TMPPATH/clu_step1 $TMPPATH/clu_uniclust30
 date --rfc-3339=seconds
 
 # generate uniclust final output: the _seed, _conensus und .tsv
 # also generated the profiles needed for the uniboost
 for i in 30 50 90; do
-    $RUNNER mmseqs result2profile "${SEQUENCE_DB}" "${SEQUENCE_DB}" "$OUTDIR/uniclust${i}_${RELEASE}" "$TMPDIR/uniclust${i}_${RELEASE}_profile"
-    ln -sf "${SEQUENCE_DB}_h" "$TMPDIR/uniclust${i}_${RELEASE}_profile_h"
-    ln -sf "${SEQUENCE_DB}_h.index" "$TMPDIR/uniclust${i}_${RELEASE}_profile_h.index"
-    ln -sf "${SEQUENCE_DB}_h" "$TMPDIR/uniclust${i}_${RELEASE}_profile_consensus_h"
-    ln -sf "${SEQUENCE_DB}_h.index" "$TMPDIR/uniclust${i}_${RELEASE}_profile_consensus_h.index"
+    $RUNNER mmseqs result2profile "${SEQUENCE_DB}" "${SEQUENCE_DB}" "$OUTDIR/uniclust${i}_${RELEASE}" "$TMPPATH/uniclust${i}_${RELEASE}_profile"
+    ln -sf "${SEQUENCE_DB}_h" "$TMPPATH/uniclust${i}_${RELEASE}_profile_h"
+    ln -sf "${SEQUENCE_DB}_h.index" "$TMPPATH/uniclust${i}_${RELEASE}_profile_h.index"
+    ln -sf "${SEQUENCE_DB}_h" "$TMPPATH/uniclust${i}_${RELEASE}_profile_consensus_h"
+    ln -sf "${SEQUENCE_DB}_h.index" "$TMPPATH/uniclust${i}_${RELEASE}_profile_consensus_h.index"
 
      #fixme: won't work with updating
-	mmseqs mergedbs "$OUTDIR/uniclust${i}_${RELEASE}" "$TMPDIR/uniclust${i}_${RELEASE}_seed" "$OUTDIR/uniprot_db_h" "$OUTDIR/uniprot_db" --prefixes ">"
-	rm -f "$TMPDIR/uniclust${i}_${RELEASE}_seed.index"
+	mmseqs mergedbs "$OUTDIR/uniclust${i}_${RELEASE}" "$TMPPATH/uniclust${i}_${RELEASE}_seed" "$OUTDIR/uniprot_db_h" "$OUTDIR/uniprot_db" --prefixes ">"
+	rm -f "$TMPPATH/uniclust${i}_${RELEASE}_seed.index"
 
-	sed -i 's/\x0//g' "$TMPDIR/uniclust${i}_${RELEASE}_seed"
+	sed -i 's/\x0//g' "$TMPPATH/uniclust${i}_${RELEASE}_seed"
 
-	mmseqs summarizeheaders "${SEQUENCE_DB}_h" "${SEQUENCE_DB}_h" "$OUTDIR/uniclust${i}_${RELEASE}" "$TMPDIR/uniclust${i}_${RELEASE}_summary" --summary-prefix "uc${i}-${SHORTRELEASE}"
-	mmseqs mergedbs "$OUTDIR/uniclust${i}_$RELEASE" "$TMPDIR/uniclust${i}_${RELEASE}_consensus" "$TMPDIR/uniclust${i}_${RELEASE}_summary" "$TMPDIR/uniclust${i}_${RELEASE}_profile_consensus" --prefixes ">"
-	rm -f "$TMPDIR/uniclust${i}_${RELEASE}_consensus.index"
-	sed -i 's/\x0//g' "$TMPDIR/uniclust${i}_${RELEASE}_consensus"
+	mmseqs summarizeheaders "${SEQUENCE_DB}_h" "${SEQUENCE_DB}_h" "$OUTDIR/uniclust${i}_${RELEASE}" "$TMPPATH/uniclust${i}_${RELEASE}_summary" --summary-prefix "uc${i}-${SHORTRELEASE}"
+	mmseqs mergedbs "$OUTDIR/uniclust${i}_$RELEASE" "$TMPPATH/uniclust${i}_${RELEASE}_consensus" "$TMPPATH/uniclust${i}_${RELEASE}_summary" "$TMPPATH/uniclust${i}_${RELEASE}_profile_consensus" --prefixes ">"
+	rm -f "$TMPPATH/uniclust${i}_${RELEASE}_consensus.index"
+	sed -i 's/\x0//g' "$TMPPATH/uniclust${i}_${RELEASE}_consensus"
 
-	mmseqs createtsv "${SEQUENCE_DB}" "${SEQUENCE_DB}" "$OUTDIR/uniclust${i}_$RELEASE" "$TMPDIR/uniclust${i}_$RELEASE.tsv"
-    mv -f "$TMPDIR/uniclust${i}_${RELEASE}_seed" "$TMPDIR/uniclust${i}_${RELEASE}_seed.fasta"
-    mv -f "$TMPDIR/uniclust${i}_${RELEASE}_consensus" "$TMPDIR/uniclust${i}_${RELEASE}_consensus.fasta"
+	mmseqs createtsv "${SEQUENCE_DB}" "${SEQUENCE_DB}" "$OUTDIR/uniclust${i}_$RELEASE" "$TMPPATH/uniclust${i}_$RELEASE.tsv"
+    mv -f "$TMPPATH/uniclust${i}_${RELEASE}_seed" "$TMPPATH/uniclust${i}_${RELEASE}_seed.fasta"
+    mv -f "$TMPPATH/uniclust${i}_${RELEASE}_consensus" "$TMPPATH/uniclust${i}_${RELEASE}_consensus.fasta"
 
-	tar -cv --use-compress-program=pigz --show-transformed-names --transform "s|${TMPDIR:1}/|uniclust${i}_${RELEASE}/|g" -f "$OUTDIR/uniclust${i}_${RELEASE}.tar.gz" "$TMPDIR/uniclust${i}_$RELEASE.tsv" "$TMPDIR/uniclust${i}_${RELEASE}_consensus.fasta" "$TMPDIR/uniclust${i}_${RELEASE}_seed.fasta"
+	tar -cv --use-compress-program=pigz --show-transformed-names --transform "s|${TMPPATH:1}/|uniclust${i}_${RELEASE}/|g" -f "$OUTDIR/uniclust${i}_${RELEASE}.tar.gz" "$TMPPATH/uniclust${i}_$RELEASE.tsv" "$TMPPATH/uniclust${i}_${RELEASE}_consensus.fasta" "$TMPPATH/uniclust${i}_${RELEASE}_seed.fasta"
 done
 
 # create uniboost 
-INPUT="$TMPDIR/uniclust30_${RELEASE}_profile"
-TARGET="$TMPDIR/uniclust30_${RELEASE}_profile_consensus"
-mkdir -p "$TMPDIR/boost1"
+INPUT="$TMPPATH/uniclust30_${RELEASE}_profile"
+TARGET="$TMPPATH/uniclust30_${RELEASE}_profile_consensus"
+mkdir -p "$TMPPATH/boost1"
 unset OMP_PROC_BIND
 # Add homologous sequences to uniprot30 clusters using a profile search through the uniprot30 consensus sequences with 3 iterations
-mmseqs search "$INPUT" "$TARGET" "$TMPDIR/boost1/aln_boost" "$TMPDIR/boost1" ${SEARCH_PAR} --num-iterations 4 --add-self-matches
+mmseqs search "$INPUT" "$TARGET" "$TMPPATH/boost1/aln_boost" "$TMPPATH/boost1" ${SEARCH_PAR} --num-iterations 4 --add-self-matches
 
-TARGET="$TMPDIR/uniclust30_${RELEASE}_profile_consensus"
+TARGET="$TMPPATH/uniclust30_${RELEASE}_profile_consensus"
 INPUT="$TARGET"
-RESULT="$TMPDIR/boost1/aln_boost"
+RESULT="$TMPPATH/boost1/aln_boost"
 
 export OMP_PROC_BIND=true
 ## For each cluster generate an MSA with -qsc filter (score per column with query) of 0.0, 0.5 1.1.
@@ -188,7 +188,7 @@ for i in 10 20 30; do
     ln -sf "${INPUT}_small_h.index" "$OUTDIR/uniboost${i}_${RELEASE}_header.ffindex"
 done
 
-mpirun cstranslate_mpi ${CSTRANSLATE_PAR} -i "$OUTDIR/uniboost10_${RELEASE}" -o "${TMPDIR}/uniboost_${RELEASE}_cs219" --both
+mpirun cstranslate_mpi ${CSTRANSLATE_PAR} -i "$OUTDIR/uniboost10_${RELEASE}" -o "${TMPPATH}/uniboost_${RELEASE}_cs219" --both
 $RUNNER mmseqs result2msa "$INPUT" "$TARGET" "$RESULT" "$OUTDIR/uniboost20_${RELEASE}" --qsc 0.5 --compress
 $RUNNER mmseqs result2msa "$INPUT" "$TARGET" "$RESULT" "$OUTDIR/uniboost30_${RELEASE}" --qsc 1.1 --compress
 
@@ -198,8 +198,8 @@ for i in 20 30; do
 done
 
 for i in 10 20 30; do
-    ln -sf "${TMPDIR}/uniboost_${RELEASE}_cs219_binary.ffdata"  "${OUTDIR}/uniboost${i}_${RELEASE}_cs219.ffdata"
-    ln -sf "${TMPDIR}/uniboost_${RELEASE}_cs219_binary.ffindex" "${OUTDIR}/uniboost${i}_${RELEASE}_cs219.ffindex"
+    ln -sf "${TMPPATH}/uniboost_${RELEASE}_cs219_binary.ffdata"  "${OUTDIR}/uniboost${i}_${RELEASE}_cs219.ffdata"
+    ln -sf "${TMPPATH}/uniboost_${RELEASE}_cs219_binary.ffindex" "${OUTDIR}/uniboost${i}_${RELEASE}_cs219.ffindex"
 
     md5deep "$OUTDIR/uniboost${i}_${RELEASE}_ca3m.ffdata" "$OUTDIR/uniboost${i}_${RELEASE}_ca3m.ffindex" \
             "$OUTDIR/uniboost${i}_${RELEASE}_header.ffdata" "$OUTDIR/uniboost${i}_${RELEASE}_header.ffindex" \

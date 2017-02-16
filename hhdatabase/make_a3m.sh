@@ -3,10 +3,10 @@
 function make_a3m() {
 	readonly INPUT=$1
 	readonly OUTPUT=$2
-	readonly TMPDIR=$3
+	readonly TMPPATH=$3
 	
 	readonly PREFIX=${INPUT##*/}
-	readonly TMPOUT="${TMPDIR}/${PREFIX}"
+	readonly TMPOUT="${TMPPATH}/${PREFIX}"
 
 	#build a3m's
     export OMP_NUM_THREADS=1

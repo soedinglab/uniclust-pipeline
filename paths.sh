@@ -1,5 +1,19 @@
 #!/bin/bash -ex
 
+function abspath() {
+    if [ -d "$1" ]; then
+        (cd "$1"; pwd)
+    elif [ -f "$1" ]; then
+        if [[ $1 == */* ]]; then
+            echo "$(cd "${1%/*}"; pwd)/${1##*/}"
+        else
+            echo "$(pwd)/$1"
+        fi
+    fi
+}
+
+SCRIPTPATH="$( cd $(dirname $0) ; pwd )"
+
 HHDBPATH="/cbscratch/mmirdit/databases"
 
 MMDIR="/cbscratch/mmirdit/uniclust/pipeline/mmseqs"
@@ -8,10 +22,10 @@ PATH="$MMDIR/bin:$MMDIR/util:$PATH"
 HHLIB="/cbscratch/mmirdit/uniclust/pipeline/hh-suite"
 PATH="$HHLIB/bin:$HHLIB/scripts:$PATH"
 
-HHDB="/cbscratch/mmirdit/uniclust/pipeline/hhdatabase"
+HHDB="${SCRIPTPATH}/hhdatabase"
 PATH="$HHDB:$PATH"
 
-UCDIR="/cbscratch/mmirdit/uniclust/pipeline"
+UCDIR="${SCRIPTPATH}"
 
 PATH="$UCDIR:$UCDIR/annotation:$PATH"
 
@@ -19,7 +33,7 @@ export FASTA="./input.fasta"
 export RELEASE="2016_09"
 export SHORTRELEASE="1609"
 export BASE="output"
-export TARGET="./output/${RELEASE}"
+export TARGET="$(abspath ./output/${RELEASE})"
 
 export PATH
 export MMDIR
