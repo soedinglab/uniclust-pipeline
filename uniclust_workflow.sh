@@ -3,17 +3,7 @@
 [ ! -f "$1"   ] && echo "Sequence database $1 not found!"       && exit 1;
 [   -d "$2"   ] && echo "Output directory $2 exists already!"   && exit 1;
 
-function abspath() {
-    if [ -d "$1" ]; then
-        (cd "$1"; pwd)
-    elif [ -f "$1" ]; then
-        if [[ $1 == */* ]]; then
-            echo "$(cd "${1%/*}"; pwd)/${1##*/}"
-        else
-            echo "$(pwd)/$1"
-        fi
-    fi
-}
+source uniclust/make_fasta.sh
 
 RELEASE="${3:-$(date "+%Y_%m")}"
 SHORTRELEASE="${4:-$(date "+%y%m")}"
@@ -136,28 +126,8 @@ date --rfc-3339=seconds
 # generate uniclust final output: the _seed, _conensus und .tsv
 # also generated the profiles needed for the uniboost
 for i in 30 50 90; do
-    $RUNNER mmseqs result2profile "${SEQUENCE_DB}" "${SEQUENCE_DB}" "$OUTDIR/uniclust${i}_${RELEASE}" "$TMPPATH/uniclust${i}_${RELEASE}_profile"
-    ln -sf "${SEQUENCE_DB}_h" "$TMPPATH/uniclust${i}_${RELEASE}_profile_h"
-    ln -sf "${SEQUENCE_DB}_h.index" "$TMPPATH/uniclust${i}_${RELEASE}_profile_h.index"
-    ln -sf "${SEQUENCE_DB}_h" "$TMPPATH/uniclust${i}_${RELEASE}_profile_consensus_h"
-    ln -sf "${SEQUENCE_DB}_h.index" "$TMPPATH/uniclust${i}_${RELEASE}_profile_consensus_h.index"
-
-     #fixme: won't work with updating
-	mmseqs mergedbs "$OUTDIR/uniclust${i}_${RELEASE}" "$TMPPATH/uniclust${i}_${RELEASE}_seed" "$OUTDIR/uniprot_db_h" "$OUTDIR/uniprot_db" --prefixes ">"
-	rm -f "$TMPPATH/uniclust${i}_${RELEASE}_seed.index"
-
-	sed -i 's/\x0//g' "$TMPPATH/uniclust${i}_${RELEASE}_seed"
-
-	mmseqs summarizeheaders "${SEQUENCE_DB}_h" "${SEQUENCE_DB}_h" "$OUTDIR/uniclust${i}_${RELEASE}" "$TMPPATH/uniclust${i}_${RELEASE}_summary" --summary-prefix "uc${i}-${SHORTRELEASE}"
-	mmseqs mergedbs "$OUTDIR/uniclust${i}_$RELEASE" "$TMPPATH/uniclust${i}_${RELEASE}_consensus" "$TMPPATH/uniclust${i}_${RELEASE}_summary" "$TMPPATH/uniclust${i}_${RELEASE}_profile_consensus" --prefixes ">"
-	rm -f "$TMPPATH/uniclust${i}_${RELEASE}_consensus.index"
-	sed -i 's/\x0//g' "$TMPPATH/uniclust${i}_${RELEASE}_consensus"
-
-	mmseqs createtsv "${SEQUENCE_DB}" "${SEQUENCE_DB}" "$OUTDIR/uniclust${i}_$RELEASE" "$TMPPATH/uniclust${i}_$RELEASE.tsv"
-    mv -f "$TMPPATH/uniclust${i}_${RELEASE}_seed" "$TMPPATH/uniclust${i}_${RELEASE}_seed.fasta"
-    mv -f "$TMPPATH/uniclust${i}_${RELEASE}_consensus" "$TMPPATH/uniclust${i}_${RELEASE}_consensus.fasta"
-
-	tar -cv --use-compress-program=pigz --show-transformed-names --transform "s|${TMPPATH:1}/|uniclust${i}_${RELEASE}/|g" -f "$OUTDIR/uniclust${i}_${RELEASE}.tar.gz" "$TMPPATH/uniclust${i}_$RELEASE.tsv" "$TMPPATH/uniclust${i}_${RELEASE}_consensus.fasta" "$TMPPATH/uniclust${i}_${RELEASE}_seed.fasta"
+    make_fasta $i $RELEASE $SHORTRELEASE "${SEQUENCE_DB}" "$OUTDIR/uniclust${i}_${RELEASE}" "$TMPPATH"
+    make_fasta_archive $i $RELEASE "${SEQUENCE_DB}" "$OUTDIR/uniclust${i}_${RELEASE}" "$OUTDIR" "$TMPPATH"
 done
 
 # create uniboost 
