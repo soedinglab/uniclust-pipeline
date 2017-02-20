@@ -39,14 +39,21 @@ function make_finalize() {
         ln -sf "${OUTNAME}_${type}.ffdata" "${OUTNAME}_${type}_db"
         cd -
     done
+}
+
+function make_hhdatabase_archive () {
+    local BASE="$1"
+    local RELEASE="$2"
+    local PREFIX="$3"
+    local OUTNAME="${PREFIX}_${RELEASE}"
+    local DB="${BASE}/${OUTNAME}"
 
     md5deep ${DB}_{a3m,hhm,cs219}.ff{data,index} "${DB}.cs219" "${DB}.cs219.sizes" ${DB}_{a3m_db,hhm_db}{,.index} > "${DB}_md5sum"
     sed -i "s|${BASE}/||g" "${DB}_md5sum"
 
     tar -cv --use-compress-program=pigz \
         --show-transformed-names --transform "s|${BASE:1}/|uniclust30_${RELEASE}/|g" \
-        -f "$TMPPATH/uniclust30_${RELEASE}_hhsuite.tar.gz" \
+        -f "${BASE}/uniclust30_${RELEASE}_hhsuite.tar.gz" \
         ${DB}_{a3m,hhm,cs219}.ff{data,index} "${DB}.cs219" "${DB}.cs219.sizes" ${DB}_{a3m_db,hhm_db}{,.index} "${DB}_md5sum"
 }
 
-make_finalize $1 $2 $3 $4
