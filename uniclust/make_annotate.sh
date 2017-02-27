@@ -62,13 +62,23 @@ function make_tsv() {
     for type in pfam scop pdb; do
         $RUNNER mmseqs summarizetabs "${DOMDB}_${type}" "${LENGTHFILE}" "${TMPPATH}/${PREFIXDOM}_${type}_annotation" -e 0.01 --overlap 0.1
         $RUNNER mmseqs extractdomains "${TMPPATH}/${PREFIXDOM}_${type}_annotation" "${MSADB}_a3m" "${TMPPATH}/${PREFIXMSA}_${type}" --msa-type 1 -e 0.01
-        tr -d '\000' < "${TMPPATH}/${PREFIXMSA}_${type}" > "${TMPPATH}/${PREFIXMSA}_${type}.tsv"
-        OUTPUT="${OUTPUT} ${TMPPATH}/${PREFIXMSA}_${type}.tsv"
+    done
+}
+
+
+function make_annotation_archive() {
+    local BASE="$1"
+    local RELEASE="$2"
+    local PREFIXMSA="$3"
+
+    local OUTPUT=""
+    for type in pfam scop pdb; do
+        tr -d '\000' < "${PREFIXMSA}_${type}" > "${PREFIXMSA}_${type}.tsv"
+        OUTPUT="${OUTPUT} ${PREFIXMSA}_${type}.tsv"
     done
 
-    local OUTPATH="${TMPPATH}/${PREFIXMSA}"
     tar -cv --use-compress-program=pigz \
-        --show-transformed-names --transform "s|${OUTPATH:1}|uniclust_${RELEASE}/uniclust_${RELEASE}_annotation|g" \
+        --show-transformed-names --transform "s|${PREFIXMSA:1}|uniclust_${RELEASE}/uniclust_${RELEASE}_annotation|g" \
         -f "${BASE}/uniclust_${RELEASE}_annotation.tar.gz" \
         ${OUTPUT}
 }

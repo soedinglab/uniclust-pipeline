@@ -11,11 +11,9 @@
 
 source hhdatabase/make_hhdatabase.sh
 
-if [ "$0" = "$BASH_SOURCE" ]; then
-    source ./paths.sh
-    mkdir -p "${TARGET}/tmp/clust"
-    make_hhdatabase "${TARGET}" "${RELEASE}" "uniclust30" "${TARGET}/uniprot_db" "${TARGET}/tmp/clust"
-    make_hhdatabase_archive "${TARGET}" "${RELEASE}" "uniclust30" "${TARGET}/tmp/clust"
-    #make_a3m "${TARGET}" "${RELEASE}" "uniclust50" "${TARGET}/tmp/clust"
-    #make_a3m "${TARGET}" "${RELEASE}" "uniclust90" "${TARGET}/tmp/clust"
-fi
+source ./paths.sh
+mkdir -p "${TARGET}/tmp/clust"
+make_hhdatabase "${TARGET}" "${RELEASE}" "uniclust30" "${TARGET}/uniprot_db" "${TARGET}/tmp/clust"
+make_hhdatabase_archive "${TARGET}" "${RELEASE}" "uniclust30" "${TARGET}/tmp/clust"
+make_a3m "${TARGET}" "${RELEASE}" "uniclust50" "${TARGET}/uniprot_db" "${TARGET}/tmp/clust"
+make_a3m "${TARGET}" "${RELEASE}" "uniclust90" "${TARGET}/uniprot_db" "${TARGET}/tmp/clust"
