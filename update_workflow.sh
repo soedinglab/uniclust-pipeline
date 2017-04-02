@@ -3,14 +3,14 @@
 #BSUB -o out.%J
 #BSUB -e err.%J
 #BSUB -W 330:00
-#BSUB -n 64
+#BSUB -n 160
 #BSUB -a openmpi
 #BSUB -m hh
 #BSUB -R haswell
 #BSUB -R cbscratch
 #BSUB -R "span[ptile=16]"
 
-#export RUNNER="mpicmd"
+#export RUNNER="/cbscratch/mmirdit/uniclust/pipeline/mpicmd"
 export OMP_NUM_THREADS=16
 
 source hhdatabase/make_hhdatabase.sh
@@ -101,8 +101,7 @@ function updatepaths() {
     NEWTARGET="$TARGET";
 }
 
-updatepaths paths.sh paths-update2.sh
-#updatepaths paths-update.sh paths-update2.sh
+updatepaths paths-martin.sh paths-2017_02.sh
 
 BOOSTTARGET=${BOOSTTARGET:-$OLDTARGET}
 BOOSTRELEASE=${BOOSTRELEASE:-$OLDRELEASE}
@@ -124,13 +123,12 @@ UPDATE90_PAR="${PREFILTER90_PAR} ${ALIGNMENT90_PAR} ${CLUSTER90_PAR} ${COMMON}"
 UPDATE50_PAR="${PREFILTER50_PAR} ${ALIGNMENT50_PAR} ${CLUSTER50_PAR} ${COMMON}"
 UPDATE30_PAR="${PREFILTER30_PAR} ${ALIGNMENT30_PAR} ${CLUSTER30_PAR} ${COMMON}"
 
-#if false; then
 mkdir -p "${NEWTARGET}/tmp/update"
 # we split all sequences that are above 14k in N/14k parts
 if [ ! -e "${NEWTARGET}/tmp/update/uniprot_db" ]; then
     mmseqs createdb "$NEWFASTA" "${NEWTARGET}/tmp/update/uniprot_db" --max-seq-len 14000
 fi
-#for i in 30 ; do
+
 for i in 30 50 90 ; do
 	date --rfc-3339=seconds
     UPDATE_PAR="UPDATE${i}_PAR"
@@ -170,7 +168,6 @@ for i in 30 50 90 ; do
     make_fasta_archive ${i} "$NEWRELEASE"  "${NEWTARGET}/uniprot_db" "${NEWTARGET}/uniclust${i}_${NEWRELEASE}" "${NEWTARGET}" "${NEWTARGET}/tmp" 
 done
 
-
 UPDATE_TMP="${NEWTARGET}/tmp/update/30"
 mkdir -p "${UPDATE_TMP}/clust"
 if [ -s "${UPDATE_TMP}/changedandnew" ]; then
@@ -182,7 +179,6 @@ for t in a3m cs219_binary cs219_plain hhm; do
 done
 
 make_hhdatabase_archive "${NEWTARGET}" ${NEWRELEASE} "uniclust30" "${UPDATE_TMP}/changed" 
-#fi
 for i in 50 90; do 
     UPDATE_TMP="${NEWTARGET}/tmp/update/${i}"
     if [ -s "${UPDATE_TMP}/changedandnew" ]; then
@@ -191,7 +187,6 @@ for i in 50 90; do
     merge_old_and_new_legacy "${UPDATE_TMP}/unchanged" "${OLDTARGET}/uniclust${i}_${OLDRELEASE}_a3m" "${UPDATE_TMP}/changedandnew" "${UPDATE_TMP}/changed/uniclust${i}_${NEWRELEASE}_a3m" "${NEWTARGET}" "${UPDATE_TMP}/merge"
 done
 
-#fi
 UPDATE_TMP="${NEWTARGET}/tmp/update/30"
 mkdir -p "${UPDATE_TMP}/annotation"
 for type in pfam scop pdb; do
@@ -206,3 +201,5 @@ for type in pfam scop pdb; do
     merge_old_and_new "${UPDATE_TMP}/unchanged" "${OLDTARGET}/tmp/annotation/uniclust30_${OLDRELEASE}_${type}" "${UPDATE_TMP}/changedids" "${UPDATE_TMP}/annotation/uniclust30_${NEWRELEASE}_${type}" "${NEWTARGET}/tmp/annotation" "${UPDATE_TMP}/merge"
 done
 make_annotation_archive "${NEWTARGET}" "${NEWRELEASE}" "${NEWTARGET}/tmp/annotation/uniclust30_${NEWRELEASE}"
+
+pigz -c "${NEWTARGET}/uniprot_db.lookup" > "${NEWTARGET}/uniclust_uniprot_mapping.tsv.gz"
