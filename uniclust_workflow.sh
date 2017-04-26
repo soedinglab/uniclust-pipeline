@@ -195,3 +195,8 @@ for i in 10 20 30; do
         "$OUTDIR/uniboost${i}_${RELEASE}_cs219.ffdata" "$OUTDIR/uniboost${i}_${RELEASE}_cs219.ffindex" \
         "$OUTDIR/uniboost${i}_${RELEASE}_md5sum"
 done
+
+##
+# Lookup from internal id to uniprot accession
+##
+pigz -c "$OUTDIR/uniprot_db.lookup" > "$OUTDIR/uniclust_uniprot_mapping.tsv.gz"
