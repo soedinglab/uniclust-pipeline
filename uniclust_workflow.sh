@@ -8,14 +8,14 @@ source uniclust/make_fasta.sh
 RELEASE="${3:-$(date "+%Y_%m")}"
 SHORTRELEASE="${4:-$(date "+%y%m")}"
 
-INPUT=$1
-OUTDIR=$2/$RELEASE
+INPUT="$1"
+OUTDIR="$2/$RELEASE"
 
-TMPPATH=$OUTDIR/tmp
-mkdir -p $TMPPATH
+TMPPATH="$OUTDIR/tmp"
+mkdir -p "$TMPPATH"
 
-OUTDIR=$(abspath $OUTDIR)
-TMPPATH=$(abspath $TMPPATH)
+OUTDIR="$(abspath $OUTDIR)"
+TMPPATH="$(abspath $TMPPATH)"
 
 PREFILTER_COMMON="$COMMON"
 PREFILTER_FRAG_PAR="--max-seqs 4000 --min-ungapped-score 100 --comp-bias-corr 0  -s 1 ${PREFILTER_COMMON}"
@@ -38,6 +38,11 @@ export OMP_PROC_BIND=true
 # we split all sequences that are above 14k in N/14k parts
 mmseqs createdb "$INPUT" "${SEQUENCE_DB}" --max-seq-len 14000
 
+##
+# Build the Uniclust
+##
+
+# Fragment filtering
 STEP="_FRAG"
 INPUT="${SEQUENCE_DB}"
 $RUNNER mmseqs prefilter "$INPUT" "$INPUT" "$TMPPATH/pref_step$STEP" ${PREFILTER_FRAG_PAR}
@@ -60,7 +65,6 @@ mmseqs clust $INPUT "$TMPPATH/aln_redundancy" "$TMPPATH/clu_redundancy" ${CLUSTE
 date --rfc-3339=seconds
 awk '{ print $1 }' "$TMPPATH/clu_redundancy.index" > "$TMPPATH/order_redundancy"
 mmseqs createsubdb "$TMPPATH/order_redundancy" $INPUT "$TMPPATH/input_step0"
-
 
 date --rfc-3339=seconds
 # go down to 90%
@@ -89,19 +93,19 @@ mmseqs clust $INPUT "$TMPPATH/aln_step$STEP" "$TMPPATH/clu_step$STEP" ${CLUSTER1
 
 date --rfc-3339=seconds
 # create database uniclust 90% (we need to merge redundancy, step_0 and step_1)
-mmseqs mergeclusters "${SEQUENCE_DB}" $OUTDIR/uniclust90_$RELEASE \
-    "$TMPPATH/clu_frag" "$TMPPATH/clu_redundancy" $TMPPATH/clu_step0 $TMPPATH/clu_step1
+mmseqs mergeclusters "${SEQUENCE_DB}" "$OUTDIR/uniclust90_$RELEASE" \
+    "$TMPPATH/clu_frag" "$TMPPATH/clu_redundancy" "$TMPPATH/clu_step0" "$TMPPATH/clu_step1"
 date --rfc-3339=seconds
 
 awk '{ print $1 }' "$TMPPATH/clu_step$STEP.index" > "$TMPPATH/order_step$STEP"
-mmseqs createsubdb "$TMPPATH/order_step$STEP" $INPUT "$TMPPATH/input_step2"
+mmseqs createsubdb "$TMPPATH/order_step$STEP" "$INPUT" "$TMPPATH/input_step2"
 # now we cluster down to 30% sequence id to produce a 30% and 50% clustering
 STEP=2
 INPUT=$TMPPATH/input_step2
 date --rfc-3339=seconds
-$RUNNER mmseqs prefilter $INPUT $INPUT "$TMPPATH/pref_step$STEP" ${PREFILTER2_PAR}
+$RUNNER mmseqs prefilter "$INPUT" "$INPUT" "$TMPPATH/pref_step$STEP" ${PREFILTER2_PAR}
 date --rfc-3339=seconds
-$RUNNER mmseqs align $INPUT $INPUT "$TMPPATH/pref_step$STEP" "$TMPPATH/aln_step$STEP" ${ALIGNMENT2_PAR}
+$RUNNER mmseqs align "$INPUT" "$INPUT" "$TMPPATH/pref_step$STEP" "$TMPPATH/aln_step$STEP" ${ALIGNMENT2_PAR}
 date --rfc-3339=seconds
 
 # cluster down to 50% 
@@ -110,8 +114,8 @@ mmseqs filterdb "$TMPPATH/aln_step$STEP" "$TMPPATH/aln_uniclust50" \
 date --rfc-3339=seconds
 mmseqs clust $INPUT "$TMPPATH/aln_uniclust50" "$TMPPATH/clu_uniclust50" ${CLUSTER2_PAR}
 date --rfc-3339=seconds
-mmseqs mergeclusters "${SEQUENCE_DB}" $OUTDIR/uniclust50_$RELEASE \
-    "$TMPPATH/clu_frag" "$TMPPATH/clu_redundancy" $TMPPATH/clu_step0 $TMPPATH/clu_step1 $TMPPATH/clu_uniclust50
+mmseqs mergeclusters "${SEQUENCE_DB}" "$OUTDIR/uniclust50_$RELEASE" \
+    "$TMPPATH/clu_frag" "$TMPPATH/clu_redundancy" "$TMPPATH/clu_step0" "$TMPPATH/clu_step1" "$TMPPATH/clu_uniclust50"
 date --rfc-3339=seconds
 
 STEP=2
@@ -119,23 +123,25 @@ INPUT=$TMPPATH/input_step2
 # cluster down to 30% 
 mmseqs clust $INPUT "$TMPPATH/aln_step$STEP" "$TMPPATH/clu_uniclust30" ${CLUSTER2_PAR}
 date --rfc-3339=seconds
-mmseqs mergeclusters "${SEQUENCE_DB}" $OUTDIR/uniclust30_$RELEASE \
-    "$TMPPATH/clu_frag" "$TMPPATH/clu_redundancy" $TMPPATH/clu_step0 $TMPPATH/clu_step1 $TMPPATH/clu_uniclust30
+mmseqs mergeclusters "${SEQUENCE_DB}" "$OUTDIR/uniclust30_$RELEASE" \
+    "$TMPPATH/clu_frag" "$TMPPATH/clu_redundancy" "$TMPPATH/clu_step0" "$TMPPATH/clu_step1" "$TMPPATH/clu_uniclust30"
 date --rfc-3339=seconds
 
 # generate uniclust final output: the _seed, _conensus und .tsv
-# also generated the profiles needed for the uniboost
+# also generates the profiles needed for the uniboost inside here
 for i in 30 50 90; do
     make_fasta $i $RELEASE $SHORTRELEASE "${SEQUENCE_DB}" "$OUTDIR/uniclust${i}_${RELEASE}" "$TMPPATH"
     make_fasta_archive $i $RELEASE "${SEQUENCE_DB}" "$OUTDIR/uniclust${i}_${RELEASE}" "$OUTDIR" "$TMPPATH"
 done
 
-# create uniboost 
+##
+# Create Uniboost 
+##
 INPUT="$TMPPATH/uniclust30_${RELEASE}_profile"
 TARGET="$TMPPATH/uniclust30_${RELEASE}_profile_consensus"
 mkdir -p "$TMPPATH/boost1"
 unset OMP_PROC_BIND
-# Add homologous sequences to uniprot30 clusters using a profile search through the uniprot30 consensus sequences with 3 iterations
+# Add homologous sequences to uniprot30 clusters using a profile search through the uniprot30 consensus sequences with 4 iterations
 mmseqs search "$INPUT" "$TARGET" "$TMPPATH/boost1/aln_boost" "$TMPPATH/boost1" ${SEARCH_PAR} --num-iterations 4 --add-self-matches
 
 TARGET="$TMPPATH/uniclust30_${RELEASE}_profile_consensus"
@@ -168,6 +174,7 @@ for i in 20 30; do
 done
 
 for i in 10 20 30; do
+    # We use the cs219 from the Uniboost10 for the other two databases, since its the most diverse
     ln -sf "${TMPPATH}/uniboost_${RELEASE}_cs219_binary.ffdata"  "${OUTDIR}/uniboost${i}_${RELEASE}_cs219.ffdata"
     ln -sf "${TMPPATH}/uniboost_${RELEASE}_cs219_binary.ffindex" "${OUTDIR}/uniboost${i}_${RELEASE}_cs219.ffindex"
     
