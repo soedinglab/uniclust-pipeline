@@ -1,0 +1,72 @@
+#!/bin/bash -ex
+
+HHDBPATH="/cbscratch/mmirdit/databases"
+UCDIR="/cbscratch/mmirdit/uniclust/pipeline"
+
+MMDIR="${UCDIR}/mmseqs"
+PATH="$MMDIR/bin:$MMDIR/util:$PATH"
+
+HHLIB="${UCDIR}/hh-suite"
+PATH="$HHLIB/bin:$HHLIB/scripts:$PATH"
+
+HHDB="${UCDIR}/hhdatabase"
+PATH="$HHDB:$PATH"
+
+PATH="$UCDIR:$UCDIR/annotation:$PATH"
+
+export BASE="${UCDIR}/sprot_trembl_martin"
+
+export RELEASE="{{RELEASE}}"
+export SHORTRELEASE="{{SHORTRELEASE}}"
+export BOOSTRELEASE="{{BOOSTRELEASE}}"
+export UNIPROTBASE="${UCDIR}/uniprot/${RELEASE}"
+export FASTA="${UNIPROTBASE}/uniprot_sprot_trembl.fasta.gz"
+export TARGET="${UCDIR}/sprot_trembl_martin/${RELEASE}"
+
+
+export PATH
+export MMDIR
+export HHLIB
+export HHDB
+export HHDBPATH
+
+export OMPI_MCA_btl_openib_ib_timeout=31
+
+function hasCommand() {
+	command -v $1 >/dev/null 2>&1 || { echo "Please make sure that $1 is in \$PATH."; exit 1; }
+}
+
+hasCommand mmseqs
+hasCommand awk
+hasCommand tar
+hasCommand pigz
+hasCommand cstranslate_mpi
+hasCommand sed
+hasCommand md5deep
+hasCommand clustalo
+hasCommand kalign
+hasCommand timeout
+hasCommand python
+hasCommand python3
+hasCommand wget
+
+function error {
+	if [[ -n "$REPORT_MAIL_1" ]]; then
+		echo "Error at line number: $1" | mail -s "Error in Uniclust Update Workflow" "$REPORT_MAIL_1"
+	fi
+
+	if [[ -n "$REPORT_MAIL_2" ]]; then
+		echo "Error at line number: $1" | mail -s "Error in Uniclust Update Workflow" "$REPORT_MAIL_2"
+	fi
+
+	if [[ -n "$REPORT_MAIL_3" ]]; then
+		echo "Error at line number: $1" | mail -s "Error in Uniclust Update Workflow" "$REPORT_MAIL_3"
+	fi
+
+	if [[ -n "$REPORT_MAIL_3" ]]; then
+		echo "Error at line number: $1" | mail -s "Error in Uniclust Update Workflow" "$REPORT_MAIL_3"
+	fi
+}
+
+trap 'error ${LINENO}' ERR
+

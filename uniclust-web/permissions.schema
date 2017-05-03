@@ -1,0 +1,5 @@
+\set lrelease '"' :release '"'
+
+GRANT USAGE ON SCHEMA :lrelease TO "mirdita";
+GRANT SELECT ON ALL TABLES IN SCHEMA :lrelease TO "mirdita";
+

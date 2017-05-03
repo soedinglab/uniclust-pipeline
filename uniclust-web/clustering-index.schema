@@ -1,0 +1,22 @@
+ALTER SYSTEM SET shared_buffers = '30GB';
+ALTER SYSTEM SET maintenance_work_mem = '10GB';
+ALTER SYSTEM SET work_mem = '10GB';
+
+\set lrelease '\'' :release '\''
+SET SCHEMA :lrelease;
+
+ALTER TABLE ONLY entries
+    DROP CONSTRAINT IF EXISTS clustering_pkey;
+
+ALTER TABLE ONLY clustering
+    ADD CONSTRAINT clustering_pkey PRIMARY KEY (parent, type, child);
+
+DROP INDEX IF EXISTS clustering_type;
+CREATE INDEX clustering_type ON clustering USING btree (type);
+
+DROP INDEX IF EXISTS clustering_child;
+CREATE INDEX clustering_child ON clustering USING btree (child);
+
+ALTER SYSTEM RESET shared_buffers;
+ALTER SYSTEM RESET maintenance_work_mem;
+ALTER SYSTEM RESET work_mem;

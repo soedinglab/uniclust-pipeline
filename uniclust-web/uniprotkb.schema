@@ -1,0 +1,38 @@
+ALTER SYSTEM SET shared_buffers = '30GB';
+ALTER SYSTEM SET maintenance_work_mem = '10GB';
+ALTER SYSTEM SET work_mem = '10GB';
+
+DROP TABLE IF EXISTS uniprotkb CASCADE;
+
+CREATE TABLE uniprotkb (
+    id text,
+    "AC" text,
+    "DT" text,
+    "DE" text,
+    "GN" text,
+    "OS" text,
+    "OG" text,
+    "OC" text,
+    "OX" text,
+    "OH" text,
+    "Reference" text,
+    "CC" text,
+    "DR" text,
+    "PE" integer,
+    "KW" text,
+--    "FT" text,
+    "SEQ" text
+);
+
+\set qkb '\'' :kb '\''
+BEGIN;
+TRUNCATE uniprotkb;
+ANALYZE uniprotkb;
+COPY uniprotkb FROM :qkb DELIMITER E'\t';
+END;
+
+CREATE UNIQUE INDEX uniprotkb_id ON uniprotkb USING btree (id);
+
+ALTER SYSTEM RESET shared_buffers;
+ALTER SYSTEM RESET maintenance_work_mem;
+ALTER SYSTEM RESET work_mem;

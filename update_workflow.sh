@@ -1,7 +1,7 @@
 #!/bin/bash -ex
 #BSUB -q mpi-long+
-#BSUB -o out.%J
-#BSUB -e err.%J
+#BSUB -o log-update.%J
+#BSUB -e log-update.%J
 #BSUB -W 330:00
 #BSUB -n 160
 #BSUB -a openmpi
@@ -15,6 +15,7 @@
 ##
 export RUNNER="/cbscratch/mmirdit/uniclust/pipeline/mpicmd"
 export OMP_NUM_THREADS=16
+
 ##
 # Imports
 ##
@@ -38,7 +39,10 @@ function merge_old_and_new () {
     local TMPPATH="$(mktemp -d "${6:-/tmp}/merge.XXXXXX")"
     if [ $? -ne 0 ]; then
         echo "Can not create temp file, exiting..."
-        exit 1
+        # this only works becasue of -e
+        # we don't call exit here because we want to trap to send an email
+        # exit 1 would prevent sending the mail
+        return 1
     fi
 
     DBNAME="$(basename $NEWDB)"
@@ -68,7 +72,8 @@ function merge_old_and_new_legacy () {
     local TMPPATH="$(mktemp -d "${6:-/tmp}/merge.XXXXXX")"
     if [ $? -ne 0 ]; then
         echo "Can not create temp file, exiting..."
-        exit 1
+        # see above
+        return 1
     fi
 
     OLDDBNAME="$(basename $OLDDB)"
@@ -119,10 +124,10 @@ function updatepaths() {
     NEWTARGET="$TARGET";
 }
 
-updatepaths paths-2017_02.sh paths-2017_04.sh
+updatepaths paths-old.sh paths-latest.sh
 
-BOOSTTARGET=${BOOSTTARGET:-$OLDTARGET}
-BOOSTRELEASE=${BOOSTRELEASE:-$OLDRELEASE}
+BOOSTTARGET=${BOOSTTARGET:-"$OLDBASE/$BOOSTRELEASE"}
+BOOSTRELEASE=${BOOSTRELEASE:-"$OLDRELEASE"}
 
 PREFILTER_COMMON=""
 PREFILTER90_PAR="-c 0.9 -s 2 ${PREFILTER_COMMON}"
@@ -157,13 +162,7 @@ for i in 30 50 90 ; do
     UPDATE_PAR="UPDATE${i}_PAR"
     UPDATE_TMP="${NEWTARGET}/tmp/update/${i}"
     mkdir -p "${UPDATE_TMP}"
-	mmseqs clusterupdate "${OLDTARGET}/uniprot_db" "${NEWTARGET}/tmp/update/uniprot_db" "${OLDTARGET}/uniclust${i}_${OLDRELEASE}" "${NEWTARGET}/uniclust${i}_${NEWRELEASE}" "${UPDATE_TMP}" ${!UPDATE_PAR}
-
-    ln -sf "${UPDATE_TMP}/NEWDB" "${NEWTARGET}/uniprot_db"
-    ln -sf "${UPDATE_TMP}/NEWDB.index" "${NEWTARGET}/uniprot_db.index"
-    ln -sf "${UPDATE_TMP}/NEWDB_h" "${NEWTARGET}/uniprot_db_h"
-    ln -sf "${UPDATE_TMP}/NEWDB_h.index" "${NEWTARGET}/uniprot_db_h.index"
-    ln -sf "${UPDATE_TMP}/NEWDB.lookup" "${NEWTARGET}/uniprot_db.lookup"
+	mmseqs clusterupdate "${OLDTARGET}/uniprot_db" "${NEWTARGET}/tmp/update/uniprot_db" "${OLDTARGET}/uniclust${i}_${OLDRELEASE}" "${NEWTARGET}/uniprot_db" "${NEWTARGET}/uniclust${i}_${NEWRELEASE}" "${UPDATE_TMP}" ${!UPDATE_PAR}
 
     ##
     # Build lists of entries for changed+new, changed and unchanged clusters
@@ -200,22 +199,27 @@ done
 ##
 # Build the HH-database (a3m, cs219, hh-suite v2 files) for UC30
 ##
-UPDATE_TMP="${NEWTARGET}/tmp/update/30"
-mkdir -p "${UPDATE_TMP}/clust"
-if [ -s "${UPDATE_TMP}/changedandnew" ]; then
-    make_hhdatabase "${UPDATE_TMP}/changed" ${NEWRELEASE} "uniclust30" "${NEWTARGET}/uniprot_db" "${NEWTARGET}/tmp/update/clust" 
+if [ ! -f "${NEWTARGET}/uniclust30_${NEWRELEASE}_hhsuite.tar.gz" ]; then
+    UPDATE_TMP="${NEWTARGET}/tmp/update/30"
+    mkdir -p "${UPDATE_TMP}/clust"
+    if [ -s "${UPDATE_TMP}/changedandnew" ]; then
+        make_hhdatabase "${UPDATE_TMP}/changed" ${NEWRELEASE} "uniclust30" "${NEWTARGET}/uniprot_db" "${NEWTARGET}/tmp/update/clust"
+    fi
+    for t in a3m cs219_binary cs219_plain hhm; do
+        merge_old_and_new_legacy "${UPDATE_TMP}/unchanged" "${OLDTARGET}/uniclust30_${OLDRELEASE}_${t}" "${UPDATE_TMP}/changedandnew" "${UPDATE_TMP}/changed/uniclust30_${NEWRELEASE}_${t}" "${NEWTARGET}" "${UPDATE_TMP}/merge"
+        ffindex_build -as "${NEWTARGET}/uniclust30_${NEWRELEASE}_${t}.ffdata" "${NEWTARGET}/uniclust30_${NEWRELEASE}_${t}.ffindex"
+    done
+    make_hhdatabase_archive "${NEWTARGET}" ${NEWRELEASE} "uniclust30" "${UPDATE_TMP}/changed" 
 fi
-for t in a3m cs219_binary cs219_plain hhm; do
-    merge_old_and_new_legacy "${UPDATE_TMP}/unchanged" "${OLDTARGET}/uniclust30_${OLDRELEASE}_${t}" "${UPDATE_TMP}/changedandnew" "${UPDATE_TMP}/changed/uniclust30_${NEWRELEASE}_${t}" "${NEWTARGET}" "${UPDATE_TMP}/merge"
-    ffindex_build -as "${NEWTARGET}/uniclust30_${NEWRELEASE}_${t}.ffdata" "${NEWTARGET}/uniclust30_${NEWRELEASE}_${t}.ffindex"
-done
-make_hhdatabase_archive "${NEWTARGET}" ${NEWRELEASE} "uniclust30" "${UPDATE_TMP}/changed" 
 
 ##
 # Build only the a3m for Uc50 and 90. cs219 etc. take a lot of time
 # These are needed for the website
 ##
 for i in 50 90; do 
+    if [[ -f "${NEWTARGET}/uniclust${i}_${NEWRELEASE}_a3m.ffdata" ]] && [[ -f "${NEWTARGET}/uniclust${i}_${NEWRELEASE}_a3m.ffindex" ]]; then
+        continue
+    fi
     UPDATE_TMP="${NEWTARGET}/tmp/update/${i}"
     if [ -s "${UPDATE_TMP}/changedandnew" ]; then
         make_a3m "${UPDATE_TMP}/changed" "${NEWRELEASE}" "uniclust${i}" "${NEWTARGET}/uniprot_db" "${UPDATE_TMP}/clust"
@@ -231,22 +235,14 @@ done
 UPDATE_TMP="${NEWTARGET}/tmp/update/30"
 mkdir -p "${UPDATE_TMP}/annotation"
 for type in pfam scop pdb; do
+    if [[ -f "${UPDATE_TMP}/annotation/uniclust30_${NEWRELEASE}_${type}" ]] && [[ -f "${UPDATE_TMP}/annotation/uniclust30_${NEWRELEASE}_${type}.index" ]]; then
+        continue
+    fi
     ln -sf "${NEWTARGET}/uniclust30_${NEWRELEASE}_a3m.ffdata" "${UPDATE_TMP}/clust/uniclust30_${NEWRELEASE}_a3m"
     ln -sf "${NEWTARGET}/uniclust30_${NEWRELEASE}_a3m.ffindex" "${UPDATE_TMP}/clust/uniclust30_${NEWRELEASE}_a3m.index"
     $RUNNER mmseqs extractdomains "${BOOSTTARGET}/tmp/annotation/uniboost10_${BOOSTRELEASE}_${type}_annotation" "${UPDATE_TMP}/clust/uniclust30_${NEWRELEASE}_a3m" "${UPDATE_TMP}/annotation/uniclust30_${NEWRELEASE}_${type}" --msa-type 1 -e 0.01
-#    if false; then
-#        ln -sf "${UPDATE_TMP}/changed/uniclust30_${NEWRELEASE}_a3m.ffdata" "${UPDATE_TMP}/clust/uniclust30_${NEWRELEASE}_a3m"
-#        ln -sf "${UPDATE_TMP}/changed/uniclust30_${NEWRELEASE}_a3m.ffindex" "${UPDATE_TMP}/clust/uniclust30_${NEWRELEASE}_a3m.index"
-#        
-#        if [ -s "${UPDATE_TMP}/changedids" ]; then
-#            mmseqs createsubdb "${UPDATE_TMP}/changedids" "${BOOSTTARGET}/tmp/annotation/uniboost10_${BOOSTRELEASE}_${type}_annotation" "${UPDATE_TMP}/annotation/uniboost10_${OLDRELEASE}_${type}_annotation_onlychanged"    
-#            $RUNNER mmseqs extractdomains "${UPDATE_TMP}/annotation/uniboost10_${OLDRELEASE}_${type}_annotation_onlychanged" "${UPDATE_TMP}/clust/uniclust30_${NEWRELEASE}_a3m" "${UPDATE_TMP}/annotation/uniclust30_${NEWRELEASE}_${type}" --msa-type 1 -e 0.01
-#        fi
-#        mkdir -p "${NEWTARGET}/tmp/annotation/"
-#        merge_old_and_new "${UPDATE_TMP}/unchanged" "${OLDTARGET}/tmp/annotation/uniclust30_${OLDRELEASE}_${type}" "${UPDATE_TMP}/changedids" "${UPDATE_TMP}/annotation/uniclust30_${NEWRELEASE}_${type}" "${NEWTARGET}/tmp/annotation" "${UPDATE_TMP}/merge"
-#    fi
 done
-make_annotation_archive "${NEWTARGET}" "${NEWRELEASE}" "${NEWTARGET}/tmp/annotation/uniclust30_${NEWRELEASE}"
+make_annotation_archive "${NEWTARGET}" "${NEWRELEASE}" "${UPDATE_TMP}/annotation/uniclust30_${NEWRELEASE}"
 
 ##
 # Build the new lookup

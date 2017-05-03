@@ -1,0 +1,25 @@
+ALTER SYSTEM SET shared_buffers = '30GB';
+ALTER SYSTEM SET maintenance_work_mem = '10GB';
+ALTER SYSTEM SET work_mem = '10GB';
+
+\set qrelease '"' :release '"'
+CREATE SCHEMA IF NOT EXISTS :qrelease;
+
+\set lrelease '\'' :release '\''
+SET SCHEMA :lrelease;
+
+CREATE TABLE IF NOT EXISTS clustering (
+    parent integer NOT NULL,
+    type integer NOT NULL,
+    child integer NOT NULL
+);
+
+ALTER TABLE ONLY clustering
+    DROP CONSTRAINT IF EXISTS clustering_pkey;
+
+\set qfile '\'' :file '\''
+COPY clustering FROM :qfile DELIMITER E'\t';
+
+ALTER SYSTEM RESET shared_buffers;
+ALTER SYSTEM RESET maintenance_work_mem;
+ALTER SYSTEM RESET work_mem;

@@ -1,7 +1,7 @@
 #!/bin/bash -ex
 #BSUB -q mpi-long+
-#BSUB -o out.%J
-#BSUB -e err.%J
+#BSUB -o log-workflow.%J
+#BSUB -e log-workflow.%J
 #BSUB -W 330:00
 #BSUB -n 160
 #BSUB -a openmpi

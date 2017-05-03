@@ -35,6 +35,11 @@ CSTRANSLATE_PAR="-x 0.3 -c 4 -A $HHLIB/data/cs219.lib -D $HHLIB/data/context_dat
 SEQUENCE_DB="$OUTDIR/uniprot_db"
 
 export OMP_PROC_BIND=true
+
+function notExists() {
+    [ ! -f "$1" ]
+}
+
 # we split all sequences that are above 14k in N/14k parts
 mmseqs createdb "$INPUT" "${SEQUENCE_DB}" --max-seq-len 14000
 
@@ -45,93 +50,142 @@ mmseqs createdb "$INPUT" "${SEQUENCE_DB}" --max-seq-len 14000
 # Fragment filtering
 STEP="_FRAG"
 INPUT="${SEQUENCE_DB}"
+if notExists "$TMPPATH/pref_step$STEP"; then
+date --rfc-3339=seconds
 $RUNNER mmseqs prefilter "$INPUT" "$INPUT" "$TMPPATH/pref_step$STEP" ${PREFILTER_FRAG_PAR}
+fi
+if notExists "$TMPPATH/aln_step$STEP"; then
 date --rfc-3339=seconds
 mmseqs rescorediagonal  "$INPUT" "$INPUT" "$TMPPATH/pref_step$STEP" "$TMPPATH/aln_step$STEP" --min-seq-id 0.9 --target-cov 0.95
+fi
+if notExists "$TMPPATH/clu_frag"; then
 date --rfc-3339=seconds
 mmseqs clust $INPUT "$TMPPATH/aln_step$STEP" "$TMPPATH/clu_frag" ${CLUSTER_FRAG_PAR}
+fi
+
+if notExists "$TMPPATH/input_step_redundancy"; then
 date --rfc-3339=seconds
 awk '{ print $1 }' "$TMPPATH/clu_frag.index" > "$TMPPATH/order_frag"
-date --rfc-3339=seconds
 mmseqs createsubdb "$TMPPATH/order_frag" $INPUT "$TMPPATH/input_step_redundancy"
-date --rfc-3339=seconds
+fi
 
 # filter redundancy 
 INPUT="$TMPPATH/input_step_redundancy"
+if notExists "$TMPPATH/aln_redundancy"; then
 date --rfc-3339=seconds
 mmseqs clusthash $INPUT "$TMPPATH/aln_redundancy" --min-seq-id 0.9
+fi
+if notExists "$TMPPATH/clu_redundancy"; then
 date --rfc-3339=seconds
 mmseqs clust $INPUT "$TMPPATH/aln_redundancy" "$TMPPATH/clu_redundancy" ${CLUSTER_FRAG_PAR}
+fi
+if notExists "$TMPPATH/input_step0"; then
 date --rfc-3339=seconds
 awk '{ print $1 }' "$TMPPATH/clu_redundancy.index" > "$TMPPATH/order_redundancy"
 mmseqs createsubdb "$TMPPATH/order_redundancy" $INPUT "$TMPPATH/input_step0"
+fi
 
-date --rfc-3339=seconds
 # go down to 90%
 STEP=0
 INPUT="$TMPPATH/input_step0"
 # Remove the fragments from the prefilter, in order not to recompute prefilter
+if notExists "$TMPPATH/pref_step$STEP"; then
+date --rfc-3339=seconds
 mmseqs createsubdb  "$TMPPATH/order_redundancy"  "$TMPPATH/pref_step_FRAG"  "$TMPPATH/pref_step_FRAG_filtered"
 mmseqs filterdb "$TMPPATH/pref_step_FRAG_filtered" "$TMPPATH/pref_step$STEP" --filter-file "$TMPPATH/order_redundancy"
+fi
+if notExists "$TMPPATH/aln_step$STEP"; then
 date --rfc-3339=seconds
 $RUNNER mmseqs align "$INPUT" "$INPUT" "$TMPPATH/pref_step$STEP" "$TMPPATH/aln_step$STEP" ${ALIGNMENT0_PAR}
+fi
+if notExists "$TMPPATH/clu_step$STEP"; then
 date --rfc-3339=seconds
 mmseqs clust $INPUT "$TMPPATH/aln_step$STEP" "$TMPPATH/clu_step$STEP" ${CLUSTER0_PAR}
+fi
+if notExists "$TMPPATH/input_step1"; then
 date --rfc-3339=seconds
 awk '{ print $1 }' "$TMPPATH/clu_step$STEP.index" > "$TMPPATH/order_step$STEP"
 mmseqs createsubdb "$TMPPATH/order_step$STEP" $INPUT "$TMPPATH/input_step1"
+fi
 
-date --rfc-3339=seconds
 # go down to 90% (this step is needed to create big clusters) 
 STEP=1
 INPUT="$TMPPATH/input_step1"
+if notExists "$TMPPATH/pref_step$STEP"; then
+date --rfc-3339=seconds
 $RUNNER mmseqs prefilter "$INPUT" "$INPUT" "$TMPPATH/pref_step$STEP" ${PREFILTER1_PAR}
+fi
+if notExists "$TMPPATH/aln_step$STEP"; then
 date --rfc-3339=seconds
 $RUNNER mmseqs align "$INPUT" "$INPUT" "$TMPPATH/pref_step$STEP" "$TMPPATH/aln_step$STEP" ${ALIGNMENT1_PAR}
+fi
+if notExists "$TMPPATH/clu_step$STEP"; then
 date --rfc-3339=seconds
 mmseqs clust $INPUT "$TMPPATH/aln_step$STEP" "$TMPPATH/clu_step$STEP" ${CLUSTER1_PAR}
+fi
 
-date --rfc-3339=seconds
 # create database uniclust 90% (we need to merge redundancy, step_0 and step_1)
+if notExists "$OUTDIR/uniclust90_$RELEASE"; then
+date --rfc-3339=seconds
 mmseqs mergeclusters "${SEQUENCE_DB}" "$OUTDIR/uniclust90_$RELEASE" \
     "$TMPPATH/clu_frag" "$TMPPATH/clu_redundancy" "$TMPPATH/clu_step0" "$TMPPATH/clu_step1"
-date --rfc-3339=seconds
+fi
 
+if notExists "$TMPPATH/input_step2"; then
+date --rfc-3339=seconds
 awk '{ print $1 }' "$TMPPATH/clu_step$STEP.index" > "$TMPPATH/order_step$STEP"
 mmseqs createsubdb "$TMPPATH/order_step$STEP" "$INPUT" "$TMPPATH/input_step2"
+fi
+
 # now we cluster down to 30% sequence id to produce a 30% and 50% clustering
 STEP=2
 INPUT=$TMPPATH/input_step2
+if notExists "$TMPPATH/pref_step$STEP"; then
 date --rfc-3339=seconds
 $RUNNER mmseqs prefilter "$INPUT" "$INPUT" "$TMPPATH/pref_step$STEP" ${PREFILTER2_PAR}
+fi
+if notExists "$TMPPATH/aln_step$STEP"; then
 date --rfc-3339=seconds
 $RUNNER mmseqs align "$INPUT" "$INPUT" "$TMPPATH/pref_step$STEP" "$TMPPATH/aln_step$STEP" ${ALIGNMENT2_PAR}
-date --rfc-3339=seconds
+fi
 
 # cluster down to 50% 
+if notExists "$TMPPATH/aln_uniclust50"; then
+date --rfc-3339=seconds
 mmseqs filterdb "$TMPPATH/aln_step$STEP" "$TMPPATH/aln_uniclust50" \
     --filter-column 3 --filter-regex '(0\.[5-9][0-9]{2}|1\.000)'
+fi
+if notExists "$TMPPATH/clu_uniclust50"; then
 date --rfc-3339=seconds
 mmseqs clust $INPUT "$TMPPATH/aln_uniclust50" "$TMPPATH/clu_uniclust50" ${CLUSTER2_PAR}
+fi
+if notExists "$OUTDIR/uniclust50_$RELEASE"; then
 date --rfc-3339=seconds
 mmseqs mergeclusters "${SEQUENCE_DB}" "$OUTDIR/uniclust50_$RELEASE" \
     "$TMPPATH/clu_frag" "$TMPPATH/clu_redundancy" "$TMPPATH/clu_step0" "$TMPPATH/clu_step1" "$TMPPATH/clu_uniclust50"
-date --rfc-3339=seconds
+fi
 
 STEP=2
 INPUT=$TMPPATH/input_step2
 # cluster down to 30% 
+if notExists "$TMPPATH/clu_uniclust30"; then
+date --rfc-3339=seconds
 mmseqs clust $INPUT "$TMPPATH/aln_step$STEP" "$TMPPATH/clu_uniclust30" ${CLUSTER2_PAR}
+fi
+if notExists "$OUTDIR/uniclust30_$RELEASE"; then
 date --rfc-3339=seconds
 mmseqs mergeclusters "${SEQUENCE_DB}" "$OUTDIR/uniclust30_$RELEASE" \
     "$TMPPATH/clu_frag" "$TMPPATH/clu_redundancy" "$TMPPATH/clu_step0" "$TMPPATH/clu_step1" "$TMPPATH/clu_uniclust30"
-date --rfc-3339=seconds
+fi
 
 # generate uniclust final output: the _seed, _conensus und .tsv
 # also generates the profiles needed for the uniboost inside here
 for i in 30 50 90; do
+    if notExists "$OUTDIR/uniclust${i}_${RELEASE}.tar.gz"; then
+    date --rfc-3339=seconds
     make_fasta $i $RELEASE $SHORTRELEASE "${SEQUENCE_DB}" "$OUTDIR/uniclust${i}_${RELEASE}" "$TMPPATH"
     make_fasta_archive $i $RELEASE "${SEQUENCE_DB}" "$OUTDIR/uniclust${i}_${RELEASE}" "$OUTDIR" "$TMPPATH"
+    fi
 done
 
 ##
@@ -150,12 +204,16 @@ RESULT="$TMPPATH/boost1/aln_boost"
 
 export OMP_PROC_BIND=true
 ## For each cluster generate an MSA with -qsc filter (score per column with query) of 0.0, 0.5 1.1.
+if notExist "$OUTDIR/uniboost10_${RELEASE}_ca3m.ffdata"; then
 $RUNNER mmseqs result2msa "$INPUT" "$TARGET" "$RESULT" "$OUTDIR/uniboost10_${RELEASE}" --qsc 0.0 --compress
 mv "$OUTDIR/uniboost10_${RELEASE}_ca3m" "$OUTDIR/uniboost10_${RELEASE}_ca3m.ffdata"
 mv "$OUTDIR/uniboost10_${RELEASE}_ca3m.index" "$OUTDIR/uniboost10_${RELEASE}_ca3m.ffindex"
+fi
 
+if notExists "${INPUT}_small_h"; then
 awk '{ print $1 }' "${INPUT}.index" > "${INPUT}.list"
 mmseqs createsubdb "${INPUT}.list" "${INPUT}" "${INPUT}_small_h"
+fi
 
 for i in 10 20 30; do
     ln -sf "${INPUT}" "$OUTDIR/uniboost${i}_${RELEASE}_sequence.ffdata"
@@ -164,7 +222,11 @@ for i in 10 20 30; do
     ln -sf "${INPUT}_small_h.index" "$OUTDIR/uniboost${i}_${RELEASE}_header.ffindex"
 done
 
+if notExists "${TMPPATH}/uniboost_${RELEASE}_cs219.ffdata"; then
 mpirun cstranslate_mpi ${CSTRANSLATE_PAR} -i "$OUTDIR/uniboost10_${RELEASE}" -o "${TMPPATH}/uniboost_${RELEASE}_cs219" --both
+fi
+
+if notExists "$OUTDIR/uniboost20_${RELEASE}_ca3m.ffdata" || notExists "$OUTDIR/uniboost30_${RELEASE}_ca3m.ffindex"; then
 $RUNNER mmseqs result2msa "$INPUT" "$TARGET" "$RESULT" "$OUTDIR/uniboost20_${RELEASE}" --qsc 0.5 --compress
 $RUNNER mmseqs result2msa "$INPUT" "$TARGET" "$RESULT" "$OUTDIR/uniboost30_${RELEASE}" --qsc 1.1 --compress
 
@@ -172,8 +234,10 @@ for i in 20 30; do
     mv -f "$OUTDIR/uniboost${i}_${RELEASE}_ca3m" "$OUTDIR/uniboost${i}_${RELEASE}_ca3m.ffdata"
     mv -f "$OUTDIR/uniboost${i}_${RELEASE}_ca3m.index" "$OUTDIR/uniboost${i}_${RELEASE}_ca3m.ffindex"
 done
+fi
 
 for i in 10 20 30; do
+    if notExists "$OUTDIR/uniboost${i}_${RELEASE}.tar.gz"; then
     # We use the cs219 from the Uniboost10 for the other two databases, since its the most diverse
     ln -sf "${TMPPATH}/uniboost_${RELEASE}_cs219_binary.ffdata"  "${OUTDIR}/uniboost${i}_${RELEASE}_cs219.ffdata"
     ln -sf "${TMPPATH}/uniboost_${RELEASE}_cs219_binary.ffindex" "${OUTDIR}/uniboost${i}_${RELEASE}_cs219.ffindex"
@@ -194,9 +258,12 @@ for i in 10 20 30; do
         "$OUTDIR/uniboost${i}_${RELEASE}_sequence.ffdata" "$OUTDIR/uniboost${i}_${RELEASE}_sequence.ffindex" \
         "$OUTDIR/uniboost${i}_${RELEASE}_cs219.ffdata" "$OUTDIR/uniboost${i}_${RELEASE}_cs219.ffindex" \
         "$OUTDIR/uniboost${i}_${RELEASE}_md5sum"
+    fi
 done
 
 ##
 # Lookup from internal id to uniprot accession
 ##
+if notExists "$OUTDIR/uniclust_uniprot_mapping.tsv.gz"; then
 pigz -c "$OUTDIR/uniprot_db.lookup" > "$OUTDIR/uniclust_uniprot_mapping.tsv.gz"
+fi

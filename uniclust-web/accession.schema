@@ -1,0 +1,26 @@
+ALTER SYSTEM SET shared_buffers = '30GB';
+ALTER SYSTEM SET maintenance_work_mem = '10GB';
+ALTER SYSTEM SET work_mem = '10GB';
+
+DROP TABLE IF EXISTS accession CASCADE;
+
+CREATE TABLE accession (
+    ac character varying(16) NOT NULL,
+    id character varying(16) NOT NULL
+);
+
+\set qac '\'' :ac '\''
+BEGIN;
+TRUNCATE accession;
+ANALYZE accession;
+COPY accession FROM :qac DELIMITER E'\t';
+END;
+
+ALTER TABLE ONLY accession
+    ADD CONSTRAINT accession_pkey PRIMARY KEY (ac, id);
+
+CREATE INDEX accession_id ON accession USING btree (id);
+
+ALTER SYSTEM RESET shared_buffers;
+ALTER SYSTEM RESET maintenance_work_mem;
+ALTER SYSTEM RESET work_mem;

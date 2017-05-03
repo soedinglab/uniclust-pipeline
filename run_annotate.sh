@@ -1,7 +1,7 @@
 #!/bin/bash -ex
 #BSUB -q mpi-long+
-#BSUB -o out.%J
-#BSUB -e err.%J
+#BSUB -o log-annotate.%J
+#BSUB -e log-annotate.%J
 #BSUB -W 120:00
 #BSUB -n 240
 #BSUB -a openmpi
@@ -9,8 +9,9 @@
 #BSUB -R cbscratch
 #BSUB -R "span[ptile=16]"
 
+source paths-latest.sh
+
 source uniclust/make_annotate.sh
-source ./paths.sh
 
 a3m_database_extract -i "${TARGET}/uniboost10_${RELEASE}_ca3m" -o "${TARGET}/uniboost10_${RELEASE}_a3m" -d "${TARGET}/uniboost10_${RELEASE}_sequence" -q "${TARGET}/uniboost10_${RELEASE}_header" 
 make_annotation "$TARGET" "uniboost10_${RELEASE}" "$HHDBPATH"
