@@ -10,9 +10,9 @@
 #BSUB -R cbscratch
 #BSUB -R "span[ptile=16]"
 
-UNICUSTWEB="/home/mpg05/mmirdit/uniclust"
 source paths-latest.sh
-WEBTARGET="${UNICUSTWEB}/${RELEASE}"
+
+WEBTARGET="${UNICLUSTWEB}/${RELEASE}"
 mkdir -m 750 -p ${WEBTARGET}
 
 awk '{ gsub(/_[[:digit:]]*/, "", $2); print $1"\t"$2; }' "${TARGET}/uniprot_db.lookup" > "/local/uniprot_db.lookup_nosplit"
@@ -20,10 +20,12 @@ for i in 30 50 90; do
     mmseqs filterdb "${TARGET}/uniclust${i}_${RELEASE}" "/local/uniclust${i}_${RELEASE}_AC" --mapping-file "/local/uniprot_db.lookup_nosplit"
 done
 
+rm -f "/local/uniprot_db.lookup_nosplit"
+
 for i in pdb scop pfam ; do
     LC_ALL=C sort -S60G --parallel=16 --temporary-directory=/dev/shm ${TARGET}/tmp/annotation/uniclust30_${RELEASE}_${i}.tsv > /local/uniclust30_${RELEASE}_${i}.tsv_sorted
     gawk -f ffindex.awk -v outfile=/local/uniclust_${RELEASE}_domains_${i} /local/uniclust30_${RELEASE}_${i}.tsv_sorted
-    rm -f /local/uniclust30_${RELEASE}_${i}.tsv
+    rm -f /local/uniclust30_${RELEASE}_${i}.tsv /local/uniclust30_${RELEASE}_${i}.tsv_sorted
 done
 
 mmseqs convertkb ${UNIPROTBASE}/uniprot_sprot_trembl.dat.gz /local/uniprotkb_${RELEASE} --kb-columns "8,13,14"
