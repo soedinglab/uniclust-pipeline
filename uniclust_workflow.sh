@@ -1,7 +1,7 @@
 #!/bin/bash -ex
 [ "$#" -lt 2  ] && echo "Please provide <sequenceDB> <outDir>"  && exit 1;
 [ ! -f "$1"   ] && echo "Sequence database $1 not found!"       && exit 1;
-[   -d "$2"   ] && echo "Output directory $2 exists already!"   && exit 1;
+#[   -d "$2"   ] && echo "Output directory $2 exists already!"   && exit 1;
 
 source uniclust/make_fasta.sh
 
@@ -29,7 +29,7 @@ CLUSTER_FRAG_PAR="--cluster-mode 2"
 CLUSTER0_PAR="--cluster-mode 2"
 CLUSTER1_PAR="--cluster-mode 0"
 CLUSTER2_PAR="--cluster-mode 0"
-SEARCH_PAR="$COMMON --profile --k-score 100"
+SEARCH_PAR="$COMMON --query-profile --k-score 100"
 CSTRANSLATE_PAR="-x 0.3 -c 4 -A $HHLIB/data/cs219.lib -D $HHLIB/data/context_data.lib -I ca3m -f -b"
 
 SEQUENCE_DB="$OUTDIR/uniprot_db"
@@ -195,8 +195,10 @@ INPUT="$TMPPATH/uniclust30_${RELEASE}_profile"
 TARGET="$TMPPATH/uniclust30_${RELEASE}_profile_consensus"
 mkdir -p "$TMPPATH/boost1"
 unset OMP_PROC_BIND
+if notExists "$TMPPATH/boost1/aln_boost"; then
 # Add homologous sequences to uniprot30 clusters using a profile search through the uniprot30 consensus sequences with 4 iterations
 mmseqs search "$INPUT" "$TARGET" "$TMPPATH/boost1/aln_boost" "$TMPPATH/boost1" ${SEARCH_PAR} --num-iterations 4 --add-self-matches
+fi
 
 TARGET="$TMPPATH/uniclust30_${RELEASE}_profile_consensus"
 INPUT="$TARGET"
@@ -204,7 +206,7 @@ RESULT="$TMPPATH/boost1/aln_boost"
 
 export OMP_PROC_BIND=true
 ## For each cluster generate an MSA with -qsc filter (score per column with query) of 0.0, 0.5 1.1.
-if notExist "$OUTDIR/uniboost10_${RELEASE}_ca3m.ffdata"; then
+if notExists "$OUTDIR/uniboost10_${RELEASE}_ca3m.ffdata"; then
 $RUNNER mmseqs result2msa "$INPUT" "$TARGET" "$RESULT" "$OUTDIR/uniboost10_${RELEASE}" --qsc 0.0 --compress
 mv "$OUTDIR/uniboost10_${RELEASE}_ca3m" "$OUTDIR/uniboost10_${RELEASE}_ca3m.ffdata"
 mv "$OUTDIR/uniboost10_${RELEASE}_ca3m.index" "$OUTDIR/uniboost10_${RELEASE}_ca3m.ffindex"
@@ -222,7 +224,7 @@ for i in 10 20 30; do
     ln -sf "${INPUT}_small_h.index" "$OUTDIR/uniboost${i}_${RELEASE}_header.ffindex"
 done
 
-if notExists "${TMPPATH}/uniboost_${RELEASE}_cs219.ffdata"; then
+if notExists "${TMPPATH}/uniboost_${RELEASE}_cs219_binary.ffdata"; then
 mpirun cstranslate_mpi ${CSTRANSLATE_PAR} -i "$OUTDIR/uniboost10_${RELEASE}" -o "${TMPPATH}/uniboost_${RELEASE}_cs219" --both
 fi
 

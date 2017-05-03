@@ -13,7 +13,7 @@
 ###
 # MPI Runner, comment in or out if updating is suposed to run with MPI
 ##
-export RUNNER="/cbscratch/mmirdit/uniclust/pipeline/mpicmd"
+export RUNNER="mpicmd"
 export OMP_NUM_THREADS=16
 
 ##
