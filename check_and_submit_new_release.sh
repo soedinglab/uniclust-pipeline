@@ -33,8 +33,9 @@ fi
 #fi
 
 function downloadEverything() {
-mkdir -p "uniprot/${RELEASE}"
     local RELEASE="$1"
+
+    mkdir -p "uniprot/${RELEASE}"
     wget "ftp://ftp.expasy.org/databases/uniprot/current_release/knowledgebase/complete/uniprot_sprot.fasta.gz" -O "uniprot/${RELEASE}/uniprot_sprot.fasta.gz"
     wget "ftp://ftp.expasy.org/databases/uniprot/current_release/knowledgebase/complete/uniprot_trembl.fasta.gz" -O "uniprot/${RELEASE}/uniprot_trembl.fasta.gz" 
     cat "uniprot/${RELEASE}/uniprot_sprot.fasta.gz" "uniprot/${RELEASE}/uniprot_trembl.fasta.gz" > "uniprot/${RELEASE}/uniprot_sprot_trembl.fasta.gz"
@@ -52,19 +53,29 @@ mkdir -p "uniprot/${RELEASE}"
 
 #downloadEverything ${RELEASE}
 ./mo paths.template > paths-${RELEASE}.sh
-mv -f paths-latest.sh paths-old.sh
+#mv -f paths-latest.sh paths-old.sh
 ln -sf paths-${RELEASE}.sh paths-latest.sh
-exit 0
 
-if $(($MONTH == 12)); then
-    bsub -J "main-$RELEASE" < run_main.sh 
-    bsub -J "hhdb-$RELEASE" -w "done(main-${RELASE})" < run_hhdatabase.sh
-    bsub -J "done-$RELEASE" -w "done(hhdb-${RELEASE})" < run_annotate.sh
+source paths-latest.sh
+
+LSF=0
+function submit() {
+    if [[ $LSF == 0 ]]; then
+        $1
+    else
+        bsub ${@:2} < $1
+    fi
+}
+
+if true || [[ $MONTH == 12 ]]; then
+    submit run_main.sh -J "main-$RELEASE"
+    submit run_hhdatabase.sh -J "hhdb-$RELEASE" -w "done(main-${RELASE})"
+    submit run_annotate.sh -J "done-$RELEASE" -w "done(hhdb-${RELEASE})"
 else
-    bsub -J "done-$RELEASE" < update_workflow.sh
+    submit update_workflow.sh -J "done-$RELEASE"
 fi
 
-bsub -J "down-$RELEASE" -w "done(done-${RELEASE})" < run_upload.sh 
-bsub -J "web1-$RELEASE" -w "done(done-${RELEASE})" < run_website.sh 
-bsub -J "psql-$RELEASE" -w "done(done-${RELEASE})" < run_website_db.sh 
-bsub -J "srch-$RELEASE" -w "done(psql-${RELEASE})" < run_website_idmapping.sh
+#submit run_upload.sh -J "down-$RELEASE" -w "done(done-${RELEASE})"
+submit run_website.sh -J "web1-$RELEASE" -w "done(done-${RELEASE})"
+submit run_website_db.sh -J "psql-$RELEASE" -w "done(done-${RELEASE})"
+submit run_website_idmapping.sh -J "srch-$RELEASE" -w "done(psql-${RELEASE})"
