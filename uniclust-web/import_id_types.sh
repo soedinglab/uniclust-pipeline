@@ -2,7 +2,6 @@
 export LC_COLLATE=C
 INPUT="$1"
 
-if false; then
 if [ ! -e "$INPUT" ]; then
     echo "Input does not exist!"
     exit 1  
@@ -82,31 +81,14 @@ rm -f $IMPORT
 mawk 'BEGIN { FS="\t"; } length($3) > 2 && length($3) <= 63 { print $0; }' "${SORTED}" > "${SORTED}_new"
 mv -f "${SORTED}_new" "${SORTED}"
 
-psql <<CLEANUPDOC
-TRUNCATE id_mapping;
-
-ALTER TABLE ONLY id_mapping
-    DROP CONSTRAINT IF EXISTS id_mapping_pkey;
-
-ALTER TABLE ONLY id_mapping
-    DROP CONSTRAINT IF EXISTS id_mapping_type_fkey;
-
-ALTER TABLE ONLY id_mapping
-    DROP CONSTRAINT IF EXISTS id_mapping_id_text_pattern_ops_idx;
-
-ALTER TABLE ONLY id_mapping
-    DROP CONSTRAINT IF EXISTS id_mapping_id_lower_varchar_pattern_ops_idx; 
-
-VACUUM FULL id_mapping;
-CLEANUPDOC
-
 psql <<SQLDOC
 ALTER SYSTEM SET shared_buffers = '30GB';
 ALTER SYSTEM SET maintenance_work_mem = '10GB';
 ALTER SYSTEM SET work_mem = '10GB';
 
 BEGIN;
-CREATE TABLE IF NOT EXISTS id_mapping (
+DROP TABLE IF EXISTS "id_mapping";
+CREATE TABLE IF NOT EXISTS "id_mapping" (
     "AC" varchar(32),
     type integer,
     "ID" varchar(64)
@@ -119,7 +101,6 @@ ALTER SYSTEM RESET maintenance_work_mem;
 ALTER SYSTEM RESET work_mem;
 SQLDOC
 
-fi
 psql <<REBUILDINDEX
 ALTER SYSTEM SET shared_buffers = '30GB';
 ALTER SYSTEM SET maintenance_work_mem = '10GB';

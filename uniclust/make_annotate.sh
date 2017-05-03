@@ -1,4 +1,7 @@
 #!/bin/bash -ex
+function notExists() {
+    [ ! -f "$1" ]
+}
 
 function make_annotation() {
     local BASE="$1"
@@ -10,25 +13,31 @@ function make_annotation() {
 
     local PAUSETIME=10
     local HHPARAMS="-v 0 -cpu 1 -n 1 -e 0.1"
-    mpirun -pernode cp -f ${ANNODB}/pfamA_29.0/pfam_{a3m,hhm,cs219}.ff{data,index} /dev/shm
-    sleep ${PAUSETIME}
-    OMP_NUM_THREADS=1 mpirun hhblits_mpi -i "${DB}_a3m" -blasttab "${DB}_pfam" -d "/dev/shm/pfam" ${HHPARAMS}
-    mpirun -pernode rm -f /dev/shm/pfam_{a3m,hhm,cs219}.ff{data,index}
 
+    if notExists "${DB}_pfam.ffdata" || notExists "${DB}_pfam.ffindex"; then
+        mpirun -pernode cp -f ${ANNODB}/pfamA_29.0/pfam_{a3m,hhm,cs219}.ff{data,index} /dev/shm
+        sleep ${PAUSETIME}
+        OMP_NUM_THREADS=1 mpirun hhblits_mpi -i "${DB}_a3m" -blasttab "${DB}_pfam" -d "/dev/shm/pfam" ${HHPARAMS}
+        mpirun -pernode rm -f /dev/shm/pfam_{a3m,hhm,cs219}.ff{data,index}
+    fi
 
-    mpirun -pernode cp -f ${ANNODB}/pdb70_14Sep16/pdb70_{a3m,hhm,cs219}.ff{data,index} /dev/shm
-    sleep ${PAUSETIME}
-    OMP_NUM_THREADS=1 mpirun hhblits_mpi -i "${DB}_a3m" -blasttab "${DB}_pdb" -d "/dev/shm/pdb70" ${HHPARAMS}
-    mpirun -pernode rm -f /dev/shm/pdb70_{a3m,hhm,cs219}.ff{data,index}
+    if notExists "${DB}_pdb.ffdata" || notExists "${DB}_pdb.ffindex"; then
+        mpirun -pernode cp -f ${ANNODB}/pdb70_14Sep16/pdb70_{a3m,hhm,cs219}.ff{data,index} /dev/shm
+        sleep ${PAUSETIME}
+        OMP_NUM_THREADS=1 mpirun hhblits_mpi -i "${DB}_a3m" -blasttab "${DB}_pdb" -d "/dev/shm/pdb70" ${HHPARAMS}
+        mpirun -pernode rm -f /dev/shm/pdb70_{a3m,hhm,cs219}.ff{data,index}
+    fi
 
-    mpirun -pernode cp -f ${ANNODB}/scop70_1.75/scop70_1.75_{a3m,hhm,cs219}.ff{data,index} /dev/shm
-    sleep ${PAUSETIME}
-    OMP_NUM_THREADS=1 mpirun hhblits_mpi -i "${DB}_a3m" -blasttab "${DB}_scop" -d "/dev/shm/scop70_1.75" ${HHPARAMS}
-    mpirun -pernode rm -f /dev/shm/scop70_1.75_{a3m,hhm,cs219}.ff{data,index}
+    if notExists "${DB}_scop.ffdata" || notExists "${DB}_scop.ffindex"; then
+        mpirun -pernode cp -f ${ANNODB}/scop70_1.75/scop70_1.75_{a3m,hhm,cs219}.ff{data,index} /dev/shm
+        sleep ${PAUSETIME}
+        OMP_NUM_THREADS=1 mpirun hhblits_mpi -i "${DB}_a3m" -blasttab "${DB}_scop" -d "/dev/shm/scop70_1.75" ${HHPARAMS}
+        mpirun -pernode rm -f /dev/shm/scop70_1.75_{a3m,hhm,cs219}.ff{data,index}
+    fi
 
     for i in pfam pdb scop; do
-        ln -s "${DB}_${i}.ffdata" "${DB}_${i}"
-        ln -s "${DB}_${i}.ffindex" "${DB}_${i}.index"
+        ln -sf "${DB}_${i}.ffdata" "${DB}_${i}"
+        ln -sf "${DB}_${i}.ffindex" "${DB}_${i}.index"
     done
 }
 

@@ -15,7 +15,18 @@ function make_release_db() {
 	local RELEASE="$2"
     local TMPDIR="$3"
     local LOOKUP="$4"
-if false; then    
+    local WEBROOT="${5}/${RELEASE}"
+
+    if [ -d "${WEBROOT}/postgres" ]; then
+        return 0
+    fi
+
+    initdb --no-locale -D "${WEBROOT}/postgres" 
+
+    pg_ctl -w -D "${WEBROOT}/postgres" -l "${TMPDIR}/pglog" start
+
+    createdb --locale=C -w
+
     psql -v release="${RELEASE}" -v file="$LOOKUP" < "uniclust-web/lookup.schema"
 
     mkdir -p ${TMPDIR}
@@ -45,16 +56,20 @@ if false; then
     done
 
     psql -v release="${RELEASE}" < "uniclust-web/clustering-index.schema"
-fi
     psql -v release="${RELEASE}" < "uniclust-web/permissions.schema"
 
+    pg_ctl -D "${WEBROOT}/postgres" -l "${TMPDIR}/pglog" stop
 }
 
 source paths-latest.sh
+
+hasCommand initdb
+hasCommand psql
+hasCommand pg_ctl
 
 MMTMP="${TARGET}/tmp/kb"
 mkdir -p "${MMTMP}"
 
 awk '{ gsub(/_[[:digit:]]*/, "", $2); print $1"\t"$2; }' "${TARGET}/uniprot_db.lookup" > "${MMTMP}/uniprot_db.lookup_nosplit"
-make_release_db "${TARGET}" "${RELEASE}" "${MMTMP}" "${MMTMP}/uniprot_db.lookup_nosplit" 
+make_release_db "${TARGET}" "${RELEASE}" "${MMTMP}" "${MMTMP}/uniprot_db.lookup_nosplit" "${UNICLUSTWEB}" 
 
