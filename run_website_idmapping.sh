@@ -20,18 +20,24 @@ MMTMP="${TARGET}/tmp/kb"
 mkdir -p "${MMTMP}"
 
 if [[  ! -f "${MMTMP}/uniprotkb_kw_idmapping_import" ]]; then
+    ##
+    # Keywords from Uniprot
+    ##
     mmseqs convertkb "${UNIPROTBASE}/uniprot_sprot_trembl.dat.gz" "${MMTMP}/uniprotkb_${RELEASE}" --kb-columns "14"
     mmseqs prefixid "${MMTMP}/uniprotkb_${RELEASE}_KW" "${MMTMP}/uniprotkb_${RELEASE}_KW_lines_prefix"
     tr -d '\000' < "${MMTMP}/uniprotkb_${RELEASE}_KW_lines_prefix" > "${MMTMP}/uniprotkb_${RELEASE}_KW_lines_prefixnn"
     mv -f "${MMTMP}/uniprotkb_${RELEASE}_KW_lines_prefixnn" "${MMTMP}/uniprotkb_${RELEASE}_KW_lines_prefix"
     rm -f "${MMTMP}/uniprotkb_${RELEASE}_KW_lines_prefix.index" "${MMTMP}/uniprotkb_${RELEASE}_KW" "${MMTMP}/uniprotkb_${RELEASE}_KW.index"
 
-    gawk 'BEGIN {FS = "\t"} { gsub(/{.*$/, "", $3); gsub(/(^[[:space:]]+|[[:space:]]+$)/, "", $3); gsub(/.+}/, "", $3); if($3 && length($3) > 3 && $3 != "Complete proteome" && $3 != "Reference proteome") print $1"\t"$3}' \
+    awk 'BEGIN {FS = "\t"} { gsub(/{.*$/, "", $3); gsub(/(^[[:space:]]+|[[:space:]]+$)/, "", $3); gsub(/.+}/, "", $3); if($3 && length($3) > 3 && $3 != "Complete proteome" && $3 != "Reference proteome") print $1"\t"$3}' \
         "${MMTMP}/uniprotkb_${RELEASE}_KW_lines_prefix" \
-        | mawk 'BEGIN {FS="\t"} {print $1"\tUniProt Keyword\t"$2}' \
+        | awk 'BEGIN {FS="\t"} {print $1"\tUniProt Keyword\t"$2}' \
             > "${MMTMP}/uniprotkb_kw_idmapping_import"
 
-    zcat "${UNIPROTBASE}/idmapping.dat.gz" | mawk 'length($3) > 3 { print $0 }' >> "${MMTMP}/uniprotkb_kw_idmapping_import"
+    ##
+    # Rest of idmapping
+    ##
+    zcat "${UNIPROTBASE}/idmapping.dat.gz" | awk 'length($3) > 3 { print $0 }' >> "${MMTMP}/uniprotkb_kw_idmapping_import"
 fi
 
 

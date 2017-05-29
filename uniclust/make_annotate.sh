@@ -41,6 +41,9 @@ function make_annotation() {
     done
 }
 
+##
+# Limitation in .m8 format, it does not have a total sequence length
+##
 function make_lengths() {
     local BASE=$1
     local DB=$2
@@ -73,7 +76,6 @@ function make_tsv() {
         $RUNNER mmseqs extractdomains "${TMPPATH}/${PREFIXDOM}_${type}_annotation" "${MSADB}_a3m" "${TMPPATH}/${PREFIXMSA}_${type}" --msa-type 1 -e 0.01
     done
 }
-
 
 function make_annotation_archive() {
     local BASE="$1"
