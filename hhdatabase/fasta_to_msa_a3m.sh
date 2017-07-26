@@ -17,7 +17,7 @@ ulimit -c 0
 # Clustal O does not handle MSAs with only one sequence well
 fasta_headers=$(grep -c '^>' $in_tmp)
 if [ "$fasta_headers" -gt "1" ]; then
-    timeout ${runtime} clustalo --force -i $in_tmp -o $out_tmp --MAC-RAM=${memory} --threads=$3 >/dev/null
+    timeout ${runtime} clustalo --output-order=input-order --force -i $in_tmp -o $out_tmp --MAC-RAM=${memory} --threads=$3 >/dev/null
     ret=$?
         
     if [ $ret -ne 0 ]; then
