@@ -23,7 +23,7 @@ done
 rm -f "/local/uniprot_db.lookup_nosplit"
 
 for i in pdb scop pfam ; do
-    LC_ALL=C sort -S60G --parallel=16 --temporary-directory=/dev/shm ${TARGET}/tmp/annotation/uniclust30_${RELEASE}_${i}.tsv > /local/uniclust30_${RELEASE}_${i}.tsv_sorted
+    LC_ALL=C sort -S60G --parallel=16 --temporary-directory=/dev/shm ${TARGET}/tmp/update/30/annotation/uniclust30_${RELEASE}_${i}.tsv > /local/uniclust30_${RELEASE}_${i}.tsv_sorted
     gawk -f ffindex.awk -v outfile=/local/uniclust_${RELEASE}_domains_${i} /local/uniclust30_${RELEASE}_${i}.tsv_sorted
     rm -f /local/uniclust30_${RELEASE}_${i}.tsv /local/uniclust30_${RELEASE}_${i}.tsv_sorted
 done

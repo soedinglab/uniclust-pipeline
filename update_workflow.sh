@@ -161,9 +161,11 @@ for i in 30 50 90 ; do
 	date --rfc-3339=seconds
     UPDATE_PAR="UPDATE${i}_PAR"
     UPDATE_TMP="${NEWTARGET}/tmp/update/${i}"
-    mkdir -p "${UPDATE_TMP}"
-	mmseqs clusterupdate "${OLDTARGET}/uniprot_db" "${NEWTARGET}/tmp/update/uniprot_db" "${OLDTARGET}/uniclust${i}_${OLDRELEASE}" "${NEWTARGET}/uniprot_db" "${NEWTARGET}/uniclust${i}_${NEWRELEASE}" "${UPDATE_TMP}" ${!UPDATE_PAR}
 
+    if [[ ! -f "${NEWTARGET}/uniclust${i}_${NEWRELEASE}" ]]; then
+        mkdir -p "${UPDATE_TMP}"
+        mmseqs clusterupdate "${OLDTARGET}/uniprot_db" "${NEWTARGET}/tmp/update/uniprot_db" "${OLDTARGET}/uniclust${i}_${OLDRELEASE}" "${NEWTARGET}/uniprot_db" "${NEWTARGET}/uniclust${i}_${NEWRELEASE}" "${UPDATE_TMP}" ${!UPDATE_PAR}
+    fi
     ##
     # Build lists of entries for changed+new, changed and unchanged clusters
     ##
@@ -206,27 +208,15 @@ if [ ! -f "${NEWTARGET}/uniclust30_${NEWRELEASE}_hhsuite.tar.gz" ]; then
         make_hhdatabase "${UPDATE_TMP}/changed" ${NEWRELEASE} "uniclust30" "${NEWTARGET}/uniprot_db" "${NEWTARGET}/tmp/update/clust"
     fi
     for t in a3m cs219_binary cs219_plain hhm; do
+        if [[ -f "${NEWTARGET}/uniclust30_${NEWRELEASE}_${t}.ffdata" ]] && [[ -f "${NEWTARGET}/uniclust30_${NEWRELEASE}_${t}.ffindex" ]]; then
+            continue
+        fi
         merge_old_and_new_legacy "${UPDATE_TMP}/unchanged" "${OLDTARGET}/uniclust30_${OLDRELEASE}_${t}" "${UPDATE_TMP}/changedandnew" "${UPDATE_TMP}/changed/uniclust30_${NEWRELEASE}_${t}" "${NEWTARGET}" "${UPDATE_TMP}/merge"
         ffindex_build -as "${NEWTARGET}/uniclust30_${NEWRELEASE}_${t}.ffdata" "${NEWTARGET}/uniclust30_${NEWRELEASE}_${t}.ffindex"
     done
+    ./hhdatabase/make_cstranslate.sh "${NEWTARGET}/uniclust30_${NEWRELEASE}_a3m" "${NEWTARGET}/uniclust30_${NEWRELEASE}_cs219"
     make_hhdatabase_archive "${NEWTARGET}" ${NEWRELEASE} "uniclust30" "${UPDATE_TMP}/changed" 
 fi
-
-##
-# Build only the a3m for Uc50 and 90. cs219 etc. take a lot of time
-# These are needed for the website
-##
-for i in 50 90; do 
-    if [[ -f "${NEWTARGET}/uniclust${i}_${NEWRELEASE}_a3m.ffdata" ]] && [[ -f "${NEWTARGET}/uniclust${i}_${NEWRELEASE}_a3m.ffindex" ]]; then
-        continue
-    fi
-    UPDATE_TMP="${NEWTARGET}/tmp/update/${i}"
-    if [ -s "${UPDATE_TMP}/changedandnew" ]; then
-        make_a3m "${UPDATE_TMP}/changed" "${NEWRELEASE}" "uniclust${i}" "${NEWTARGET}/uniprot_db" "${UPDATE_TMP}/clust"
-    fi
-    merge_old_and_new_legacy "${UPDATE_TMP}/unchanged" "${OLDTARGET}/uniclust${i}_${OLDRELEASE}_a3m" "${UPDATE_TMP}/changedandnew" "${UPDATE_TMP}/changed/uniclust${i}_${NEWRELEASE}_a3m" "${NEWTARGET}" "${UPDATE_TMP}/merge"
-done
-
 
 ## 
 # Build the annotation flat files for pfam, scop and pdb
@@ -248,4 +238,19 @@ make_annotation_archive "${NEWTARGET}" "${NEWRELEASE}" "${UPDATE_TMP}/annotation
 # Build the new lookup
 ##
 pigz -c "${NEWTARGET}/uniprot_db.lookup" > "${NEWTARGET}/uniclust_uniprot_mapping.tsv.gz"
+
+##
+# Build only the a3m for Uc50 and 90. cs219 etc. take a lot of time
+# These are needed for the website
+##
+for i in 50 90; do
+    if [[ -f "${NEWTARGET}/uniclust${i}_${NEWRELEASE}_a3m.ffdata" ]] && [[ -f "${NEWTARGET}/uniclust${i}_${NEWRELEASE}_a3m.ffindex" ]]; then
+        continue
+    fi
+    UPDATE_TMP="${NEWTARGET}/tmp/update/${i}"
+    if [ -s "${UPDATE_TMP}/changedandnew" ]; then
+        make_a3m "${UPDATE_TMP}/changed" "${NEWRELEASE}" "uniclust${i}" "${NEWTARGET}/uniprot_db" "${UPDATE_TMP}/clust"
+    fi
+    merge_old_and_new_legacy "${UPDATE_TMP}/unchanged" "${OLDTARGET}/uniclust${i}_${OLDRELEASE}_a3m" "${UPDATE_TMP}/changedandnew" "${UPDATE_TMP}/changed/uniclust${i}_${NEWRELEASE}_a3m" "${NEWTARGET}" "${UPDATE_TMP}/merge"
+done
 

@@ -14,6 +14,7 @@ PATH="$HHDB:$PATH"
 
 PATH="$UCDIR:$UCDIR/annotation:$PATH"
 
+export UNICLUSTWEB="${UCDIR}/web/${RELEASE}"
 export BASE="${UCDIR}/sprot_trembl_martin"
 
 export RELEASE="{{RELEASE}}"

@@ -56,15 +56,16 @@ function downloadEverything() {
     wget "ftp://ftp.ncbi.nlm.nih.gov/pub/taxonomy/taxdump.tar.gz" -O "uniprot/${RELEASE}/taxdump.tar.gz"
 }
 
-#downloadEverything ${RELEASE}
+downloadEverything ${RELEASE}
 ##
 # mo is a mustache template handler, replaces {{VARIABLES}} with env variables
 ##
 ./mo paths.template > paths-${RELEASE}.sh
-mv -f paths-latest.sh paths-old.sh
-ln -sf paths-${RELEASE}.sh paths-latest.sh
+chmod +x "paths-${RELEASE}.sh"
+mv -f "paths-latest.sh" "paths-old.sh"
+ln -sf "paths-${RELEASE}.sh" "paths-latest.sh"
 
-source paths-latest.sh
+source "paths-latest.sh"
 
 LSF=0
 ##

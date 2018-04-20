@@ -14,9 +14,8 @@ function make_a3m() {
 
 	#remove presumably wrong clusters
 	grep "\s1$" ${OUTPUT}.ffindex | cut -f1 > ${TMPOUT}_misaligned_a3ms_0.dat
-
 	nr_entries=$(wc -l ${TMPOUT}_misaligned_a3ms_0.dat | cut -f1 -d" ")
-	if [ "$nr_entries" == "0" ]; then 
+	if [ "$nr_entries" == "0" ]; then
 		exit 0;
 	fi
 
@@ -36,6 +35,10 @@ function make_a3m() {
 	mpirun -npernode 2 --bind-to none ffindex_apply_mpi -d ${TMPOUT}_missing_a3m_1.ffdata -i ${TMPOUT}_missing_a3m_1.ffindex ${TMPOUT}_missing_fasta_1.ff{data,index} -- fasta_to_msa_a3m.sh 3h 60000 8
 	grep "\s1$" ${TMPOUT}_missing_a3m_1.ffindex | cut -f1 > ${TMPOUT}_misaligned_a3ms_1.dat
 	ffindex_modify -u -f ${TMPOUT}_misaligned_a3ms_1.dat ${TMPOUT}_missing_a3m_1.ffindex
+	nr_entries=$(wc -l ${TMPOUT}_missing_a3m_1.ffindex | cut -f1 -d" ")
+	if [ "$nr_entries" == "0" ]; then
+		exit 0;
+	fi
 	ffindex_build -as ${OUTPUT}.ff{data,index} -i ${TMPOUT}_missing_a3m_1.ffindex -d ${TMPOUT}_missing_a3m_1.ffdata
 
 	##second repair iteration
@@ -48,16 +51,18 @@ function make_a3m() {
 
 	#retry presumably wrong clusters with more memory, more threads and longer runtime
 	nr_entries=$(wc -l ${TMPOUT}_misaligned_a3ms_1.dat | cut -f1 -d" ")
-    if [ "$nr_entries" == "0" ]; then
-        exit 0;
-    fi
+	if [ "$nr_entries" == "0" ]; then
+		exit 0;
+	fi
 
     export OMP_NUM_THREADS=16
 	mpirun -npernode 1 --bind-to none ffindex_apply_mpi -d ${TMPOUT}_missing_a3m_2.ffdata -i ${TMPOUT}_missing_a3m_2.ffindex ${TMPOUT}_missing_fasta_2.ff{data,index} -- fasta_to_msa_a3m.sh 8h 120000 16
 	grep "\s1$" ${TMPOUT}_missing_a3m_2.ffindex | cut -f1 > ${TMPOUT}_misaligned_a3ms_2.dat
 	ffindex_modify -u -f ${TMPOUT}_misaligned_a3ms_2.dat ${TMPOUT}_missing_a3m_2.ffindex
-
-	##merging
+	nr_entries=$(wc -l ${TMPOUT}_missing_a3m_2.ffindex | cut -f1 -d" ")
+	if [ "$nr_entries" == "0" ]; then
+		exit 0;
+	fi
 	ffindex_build -as ${OUTPUT}.ff{data,index} -i ${TMPOUT}_missing_a3m_2.ffindex -d ${TMPOUT}_missing_a3m_2.ffdata
 }
 

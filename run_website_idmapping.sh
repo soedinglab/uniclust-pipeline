@@ -18,6 +18,7 @@ hasCommand zcat
 
 MMTMP="${TARGET}/tmp/kb"
 mkdir -p "${MMTMP}"
+mkdir -p "${UNICLUSTWEB}"
 
 if [[  ! -f "${MMTMP}/uniprotkb_kw_idmapping_import" ]]; then
     ##
@@ -39,7 +40,6 @@ if [[  ! -f "${MMTMP}/uniprotkb_kw_idmapping_import" ]]; then
     ##
     zcat "${UNIPROTBASE}/idmapping.dat.gz" | awk 'length($3) > 3 { print $0 }' >> "${MMTMP}/uniprotkb_kw_idmapping_import"
 fi
-
 
 pg_ctl -w -D "${UNICLUSTWEB}/${RELEASE}/postgres" -l "${MMTMP}/pglog" start
 uniclust-web/import_id_types.sh "${MMTMP}/uniprotkb_kw_idmapping_import"
