@@ -15,14 +15,14 @@ PATH="$HHDB:$PATH"
 PATH="$UCDIR:$UCDIR/annotation:$PATH"
 
 export UNICLUSTWEB="${UCDIR}/web/${RELEASE}"
-export BASE="${UCDIR}/sprot_trembl_martin"
+export BASE="${UCDIR}/sprot_trembl"
 
 export RELEASE="{{RELEASE}}"
 export SHORTRELEASE="{{SHORTRELEASE}}"
 export BOOSTRELEASE="{{BOOSTRELEASE}}"
 export UNIPROTBASE="${UCDIR}/uniprot/${RELEASE}"
 export FASTA="${UNIPROTBASE}/uniprot_sprot_trembl.fasta.gz"
-export TARGET="${UCDIR}/sprot_trembl_martin/${RELEASE}"
+export TARGET="${BASE}/${RELEASE}"
 
 
 export PATH
