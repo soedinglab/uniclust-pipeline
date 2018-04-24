@@ -201,6 +201,7 @@ if notExists "${RESULT}"; then
 fi
 
 
+INPUT="$TMPPATH/uniclust30_${RELEASE}_profile_consensus"
 ## For each cluster generate an MSA with -qsc filter (score per column with query) of 0.0, 0.5 1.1.
 if notExists "$OUTDIR/uniboost10_${RELEASE}_ca3m.ffdata"; then
     $RUNNER mmseqs result2msa "$INPUT" "$TARGET" "$RESULT" "$OUTDIR/uniboost10_${RELEASE}" --qsc 0.0 --compress
@@ -220,8 +221,8 @@ for i in 10 20 30; do
 done
 fi
 
-if notExists "${TMPPATH}/uniboost_${RELEASE}_cs219_binary.ffdata"; then
-    mpirun cstranslate_mpi ${CSTRANSLATE_PAR} -i "$OUTDIR/uniboost10_${RELEASE}" -o "${TMPPATH}/uniboost_${RELEASE}_cs219" --both
+if notExists "${TMPPATH}/uniboost_${RELEASE}_cs219.ffdata"; then
+    OMP_NUM_THREADS=1 mpirun cstranslate_mpi ${CSTRANSLATE_PAR} -i "$OUTDIR/uniboost10_${RELEASE}" -o "${TMPPATH}/uniboost_${RELEASE}_cs219"
 fi
 
 if notExists "$OUTDIR/uniboost20_${RELEASE}_ca3m.ffdata"; then
@@ -234,8 +235,8 @@ fi
 for i in 10 20 30; do
     if notExists "$OUTDIR/uniboost${i}_${RELEASE}.tar.gz"; then
         # We use the cs219 from the Uniboost10 for the other two databases, since its the most diverse
-        ln -sf "${TMPPATH}/uniboost_${RELEASE}_cs219_binary.ffdata"  "${OUTDIR}/uniboost${i}_${RELEASE}_cs219.ffdata"
-        ln -sf "${TMPPATH}/uniboost_${RELEASE}_cs219_binary.ffindex" "${OUTDIR}/uniboost${i}_${RELEASE}_cs219.ffindex"
+        ln -sf "${TMPPATH}/uniboost_${RELEASE}_cs219.ffdata"  "${OUTDIR}/uniboost${i}_${RELEASE}_cs219.ffdata"
+        ln -sf "${TMPPATH}/uniboost_${RELEASE}_cs219.ffindex" "${OUTDIR}/uniboost${i}_${RELEASE}_cs219.ffindex"
 
         ffindex_build -as "$OUTDIR/uniboost${i}_${RELEASE}_ca3m.ffdata" "$OUTDIR/uniboost${i}_${RELEASE}_ca3m.ffindex"
         ffindex_build -as "$OUTDIR/uniboost${i}_${RELEASE}_cs219.ffdata" "$OUTDIR/uniboost${i}_${RELEASE}_cs219.ffindex"
