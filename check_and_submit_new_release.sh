@@ -7,6 +7,8 @@ VERSION=($(curl -s ftp://ftp.expasy.org/databases/uniprot/current_release/RELEAS
 
 #VERSION=(20 17 06)
 
+LSF=1
+
 YEAR1="${VERSION[0]}"
 YEAR2="${VERSION[1]}"
 MONTH="${VERSION[2]}"
@@ -24,7 +26,7 @@ if [[ -f paths-latest.sh ]]; then
 fi
 
 function isNotReleaseMonth() {
-    return $(($1 % 2 == 0))
+    return $(($1 % 2 != 0))
 }
 
 if isNotReleaseMonth "$MONTH"; then
@@ -55,22 +57,19 @@ function downloadEverything() {
 
     wget "ftp://ftp.ncbi.nlm.nih.gov/pub/taxonomy/taxdump.tar.gz" -O "uniprot/${RELEASE}/taxdump.tar.gz"
 }
+downloadEverything "${RELEASE}"
 
-downloadEverything ${RELEASE}
-##
 # mo is a mustache template handler, replaces {{VARIABLES}} with env variables
-##
 ./mo paths.template > paths-${RELEASE}.sh
 chmod +x "paths-${RELEASE}.sh"
-mv -f "paths-latest.sh" "paths-old.sh"
+if [ -f "paths-latest.sh" ]; then
+    mv -f "paths-latest.sh" "paths-old.sh"
+fi
 ln -sf "paths-${RELEASE}.sh" "paths-latest.sh"
 
 source "paths-latest.sh"
 
-LSF=0
-##
 # Either submit to LSF or run here, useful for debugging
-##
 function submit() {
     if [[ $LSF == 0 ]]; then
         $1
@@ -79,21 +78,21 @@ function submit() {
     fi
 }
 
-##
 # December is a full release month
-##
-if [[ $MONTH == 12 ]]; then
-    submit run_main.sh -J "main-$RELEASE"
-    submit run_hhdatabase.sh -J "hhdb-$RELEASE" -w "done(main-${RELASE})"
-    submit run_annotate.sh -J "done-$RELEASE" -w "done(hhdb-${RELEASE})"
+if [[ $MONTH == 3 ]]; then
+    submit run_main.sh -J "main-${RELEASE}"
+    submit run_hhdatabase.sh -J "hhdb-${RELEASE}" -w "done(main-${RELEASE})"
+    submit run_annotate.sh -J "done-${RELEASE}" -w "done(hhdb-${RELEASE})"
 else
-    submit update_workflow.sh -J "done-$RELEASE"
+    submit update_workflow.sh -J "done-${RELEASE}"
 fi
 
-submit run_upload.sh -J "down-$RELEASE" -w "done(done-${RELEASE})"
+submit run_upload.sh -J "down-${RELEASE}" -w "done(done-${RELEASE})"
+
 # Website start
-submit run_website.sh -J "web1-$RELEASE" -w "done(done-${RELEASE})"
-submit run_website_db.sh -J "psql-$RELEASE" -w "done(done-${RELEASE})"
-submit run_website_idmapping.sh -J "search-$RELEASE" -w "done(psql-${RELEASE})"
+submit run_website.sh -J "web1-${RELEASE}" -w "done(done-${RELEASE})"
+submit run_website_db.sh -J "psql-${RELEASE}" -w "done(done-${RELEASE})"
+submit run_website_idmapping.sh -J "search-${RELEASE}" -w "done(psql-${RELEASE})"
 # Website end
-submit report_success.sh -J "success-$RELEASE" -w "done(down-$RELEASE) && done(web1-$RELEASE) && done(psql-$RELEASE) && done(search-$RELEASE)"
+
+submit report_success.sh -J "success-${RELEASE}" -w "done(down-${RELEASE}) && done(web1-${RELEASE}) && done(psql-${RELEASE}) && done(search-${RELEASE})"
